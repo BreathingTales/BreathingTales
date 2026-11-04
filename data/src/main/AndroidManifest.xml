@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 차량 어댑터(data/vehicle)가 쓰는 권한. 이름은 docs/dev/02_기술_확인.md 3장 -->
+    <!-- Pleos Vehicle: 공조 조회·제어 -->
+    <uses-permission android:name="pleos.car.permission.CAR_CLIMATE" />
+    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_CLIMATE" />
+    <!-- Pleos Vehicle: 앰비언트 색·밝기·스위치(CAR_LIGHTS), 주행모드 자동색 해제(CONTROL_CAR_LIGHTS) -->
+    <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />
+    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_LIGHTS" />
+    <!-- Pleos Vehicle: 시트 열선, 시트 높이·착석·안전벨트 (기획서 5장 7번) -->
+    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
+    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_SEATS" />
+    <uses-permission android:name="pleos.car.permission.CAR_SAFETY" />
+    <!-- Pleos Vehicle: 도어 -->
+    <uses-permission android:name="pleos.car.permission.CAR_DOORS" />
+    <!-- AAOS: 기어·주차 브레이크(CAR_POWERTRAIN), 속도(CAR_SPEED, 런타임 요청) -->
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <uses-permission android:name="android.car.permission.CAR_SPEED" />
+
+    <!-- 음성(data/voice): Pleos TTS·STT, 숨 불기 마이크(RECORD_AUDIO, 런타임 요청) -->
+    <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
+    <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+</manifest>

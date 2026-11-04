@@ -1,0 +1,45 @@
+# Gradle / Android
+.gradle/
+build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets (외부 TTS API 키 등)
+secrets.properties
+*.keystore
+*.jks
+keystore.properties
+keystore/
+.env
+
+# Claude Code 개인 설정
+.claude/settings.local.json
+
+# 기획·개발 문서 (로컬 전용)
+/docs/
+
+# 콘텐츠 제작 도구 (로컬 전용): 대본 원본·TTS 생성 스크립트·원본 wav.
+# 앱이 쓰는 결과물(story.json, mp3)은 app/src/main/assets/stories/에 있다
+/tools/
+
+# Claude 결과물 (공모전 제출 자료 등, 로컬 전용)
+/Claude outputs/
+
+# 개발 도구 설정 (로컬 전용)
+/CLAUDE.md

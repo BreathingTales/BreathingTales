@@ -1,0 +1,1094 @@
+{
+  "id": "sun-and-wind",
+  "title": "해님과 바람, 그리고 작은 차의 나그네",
+  "ageRange": "4-7",
+  "durationSec": 500,
+  "scenes": [
+    {
+      "id": "opening",
+      "image": "scene_opening.webp",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "tts": true,
+          "text": "{childName}, 반가워! 지금부터 이 차는 하늘 극장이야."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_01.mp3",
+          "text": "쉿, 극장 불이 하나씩 꺼지고 있어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_02.mp3",
+          "text": "이 극장에서는 이야기를 귀로 듣고, 몸으로도 느껴요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_03.mp3",
+          "text": "어쩌면 진짜 바람과 햇살이 찾아올지도 몰라요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_04.mp3",
+          "text": "자, 저 높은 하늘로 함께 올라가 볼까요?"
+        }
+      ],
+      "effects": [
+        {
+          "at": 0.0,
+          "type": "cabinLight",
+          "value": "off"
+        },
+        {
+          "at": 0.0,
+          "type": "ambient",
+          "color": "#1E2A44",
+          "brightness": 0.15,
+          "fadeSec": 3.0
+        },
+        {
+          "at": 0.0,
+          "type": "sound",
+          "audio": "sfx_theater_chime.mp3",
+          "volume": 0.5
+        },
+        {
+          "at": 20.0,
+          "type": "ambient",
+          "color": "#9FD3F0",
+          "brightness": 0.35,
+          "fadeSec": 3.0
+        }
+      ]
+    },
+    {
+      "id": "sky-morning",
+      "image": "scene_sky-morning.webp",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "audio": "narrator_05.mp3",
+          "text": "아침 해가 동그랗게 떠오른 하늘나라."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_06.mp3",
+          "text": "몽실몽실 하얀 구름 사이로 파란 하늘이 활짝 열렸어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_07.mp3",
+          "text": "그 한가운데에 해님이 느긋하게 앉아 있었지요."
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_01.mp3",
+          "text": "흐아암, 잘 잤다. 오늘도 좋은 아침이로구나."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_08.mp3",
+          "text": "그때 저쪽에서 휘리릭, 바람이 달려왔어요."
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_01.mp3",
+          "text": "해님, 해님! 나 왔어! 오늘은 뭐 하고 놀까?"
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_09.mp3",
+          "text": "뒤이어 파닥파닥, 작은 새 한 마리도 날아왔지요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_10.mp3",
+          "text": "하늘 소식을 전하는 꼬마 새, 포롱이에요."
+        },
+        {
+          "speaker": "porong",
+          "audio": "porong_01.mp3",
+          "text": "짹! 안녕하세요! 하늘 소식을 전하러 왔어요."
+        },
+        {
+          "speaker": "porong",
+          "audio": "porong_02.mp3",
+          "text": "그런데 오늘 날씨는 누가 맡을 거예요?"
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_02.mp3",
+          "text": "오늘은 내가 맡으마. 포근한 날로 해 줄게."
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_02.mp3",
+          "text": "아니야, 오늘은 나야! 씽씽 바람 부는 날!"
+        }
+      ],
+      "effects": [
+        {
+          "at": 0.0,
+          "type": "ambient",
+          "color": "#87CEEB",
+          "brightness": 0.4,
+          "fadeSec": 2.0
+        },
+        {
+          "at": 0.0,
+          "type": "sound",
+          "audio": "sfx_birds.mp3",
+          "volume": 0.3
+        },
+        {
+          "at": 22.9,
+          "type": "sound",
+          "audio": "sfx_wing_flutter.mp3",
+          "volume": 0.5
+        }
+      ]
+    },
+    {
+      "id": "who-is-stronger",
+      "image": "scene_who-is-stronger.webp",
+      "lines": [
+        {
+          "speaker": "sun",
+          "audio": "sun_03.mp3",
+          "text": "날씨는 하늘에서 제일 힘센 쪽이 맡는 거란다."
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_04.mp3",
+          "text": "그러니 오늘은 내 차례지."
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_03.mp3",
+          "text": "무슨 소리! 하늘에서 제일 힘센 건 바로 나야!"
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_04.mp3",
+          "text": "나는 커다란 나무도 휘게 하고, 바다에 파도도 일으킨다고!"
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_05.mp3",
+          "text": "허허, 나는 꽁꽁 언 눈사람도 사르르 녹인단다."
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_05.mp3",
+          "text": "나는 연을 하늘 꼭대기까지 날려 보낼 수 있어!"
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_06.mp3",
+          "text": "허허, 글쎄다."
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_06.mp3",
+          "text": "글쎄가 아니라 진짜라니까!"
+        },
+        {
+          "speaker": "porong",
+          "audio": "porong_03.mp3",
+          "text": "짹짹, 잠깐잠깐! 말로만 하면 끝이 안 나요."
+        },
+        {
+          "speaker": "porong",
+          "audio": "porong_04.mp3",
+          "text": "제가 심판을 볼게요. 내기로 정해요!"
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_07.mp3",
+          "text": "좋지. 재미있겠구나."
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_07.mp3",
+          "text": "좋아! 어차피 내가 이길 거지만!"
+        }
+      ],
+      "effects": [
+        {
+          "at": 0.0,
+          "type": "ambient",
+          "color": "#FFE7A8",
+          "brightness": 0.4,
+          "fadeSec": 2.0
+        },
+        {
+          "at": 4.9,
+          "type": "ambient",
+          "color": "#A9CCE3",
+          "brightness": 0.4,
+          "fadeSec": 1.0
+        },
+        {
+          "at": 11.8,
+          "type": "ambient",
+          "color": "#FFE7A8",
+          "brightness": 0.4,
+          "fadeSec": 1.0
+        },
+        {
+          "at": 16.0,
+          "type": "ambient",
+          "color": "#A9CCE3",
+          "brightness": 0.4,
+          "fadeSec": 1.0
+        },
+        {
+          "at": 23.0,
+          "type": "sound",
+          "audio": "sfx_ref_whistle.mp3",
+          "volume": 0.5
+        },
+        {
+          "at": 23.0,
+          "type": "ambient",
+          "color": "#BFE3F5",
+          "brightness": 0.4,
+          "fadeSec": 2.0
+        }
+      ]
+    },
+    {
+      "id": "little-car",
+      "image": "scene_little-car.webp",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "audio": "narrator_11.mp3",
+          "text": "셋은 하늘 아래를 내려다보았어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_12.mp3",
+          "text": "구불구불한 길 옆에, 작은 차 한 대가 서 있었어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_13.mp3",
+          "text": "차 유리 너머로 초롱초롱한 눈이 보였지요."
+        },
+        {
+          "speaker": "porong",
+          "audio": "porong_05.mp3",
+          "text": "저기 보세요! 차 안에 누가 앉아 있어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_14.mp3",
+          "text": "차 안의 나그네는 포근한 겉옷을 입고 있었지요."
+        },
+        {
+          "speaker": "narrator",
+          "tts": true,
+          "text": "{childName}, 그 나그네가 바로 너야!"
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_15.mp3",
+          "text": "진짜 겉옷이 없어도 괜찮아요. 입었다고 생각해 봐요."
+        },
+        {
+          "speaker": "porong",
+          "audio": "porong_06.mp3",
+          "text": "내기 규칙! 나그네의 겉옷을 먼저 벗게 하는 쪽이 이겨요."
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_08.mp3",
+          "text": "바람아, 네가 먼저 해 보렴."
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_08.mp3",
+          "text": "하하, 겉옷쯤이야 눈 깜짝할 새지!"
+        },
+        {
+          "speaker": "porong",
+          "audio": "porong_07.mp3",
+          "text": "나그네님, 준비됐나요? 신호를 주세요!"
+        },
+        {
+          "speaker": "narrator",
+          "tts": true,
+          "text": "{childName}, 준비됐으면 내기 시작! 하고 외쳐 줘."
+        }
+      ],
+      "effects": [
+        {
+          "at": 0.0,
+          "type": "ambient",
+          "color": "#BFE3F5",
+          "brightness": 0.45,
+          "fadeSec": 2.0
+        },
+        {
+          "at": 13.4,
+          "type": "sound",
+          "audio": "sfx_coat_rustle.mp3",
+          "volume": 0.4
+        }
+      ],
+      "interaction": {
+        "type": "shout",
+        "keywords": [
+          "내기 시작",
+          "시작"
+        ],
+        "onSuccess": [
+          {
+            "type": "sound",
+            "audio": "sfx_ref_whistle.mp3",
+            "volume": 0.6
+          },
+          {
+            "type": "ambientBrightnessStep",
+            "value": 0.15,
+            "max": 0.6
+          }
+        ],
+        "fallbackButton": "내기 시작!",
+        "timeoutSec": 15,
+        "repeat": 1
+      }
+    },
+    {
+      "id": "wind-turn",
+      "image": "scene_wind-turn.webp",
+      "lines": [
+        {
+          "speaker": "porong",
+          "audio": "porong_08.mp3",
+          "text": "첫 번째 차례는 바람님! 시작!"
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_09.mp3",
+          "text": "자, 받아라! 휘이익~!"
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_16.mp3",
+          "text": "쌔애앵~ 차 둘레로 바람이 몰려왔어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_17.mp3",
+          "text": "길가의 들꽃들이 고개를 까딱까딱 흔들었지요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_18.mp3",
+          "text": "나그네는 어깨를 살짝 움츠렸어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_19.mp3",
+          "text": "나뭇잎들이 빙글빙글 춤을 추며 날아갔어요."
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_10.mp3",
+          "text": "어때? 이제 겉옷 벗고 싶지?"
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_09.mp3",
+          "text": "허허, 겉옷 단추 하나 안 풀렸구나."
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_11.mp3",
+          "text": "흥, 방금 건 연습이었어. 이제 진짜다!"
+        },
+        {
+          "speaker": "narrator",
+          "tts": true,
+          "text": "{childName}, 바람아 불어라! 하고 외쳐 줘."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_20.mp3",
+          "text": "아니면 후~ 하고 길게 불어도 좋아요."
+        }
+      ],
+      "effects": [
+        {
+          "at": 0.0,
+          "type": "temperatureDelta",
+          "value": -1.5
+        },
+        {
+          "at": 0.0,
+          "type": "ambient",
+          "color": "#4A90E2",
+          "brightness": 0.55,
+          "fadeSec": 2.0
+        },
+        {
+          "at": 0.0,
+          "type": "fanDirection",
+          "value": "face"
+        },
+        {
+          "at": 2.9,
+          "type": "fanLevel",
+          "value": 1
+        },
+        {
+          "at": 2.9,
+          "type": "sound",
+          "audio": "sfx_wind.mp3",
+          "volume": 0.6
+        }
+      ],
+      "interaction": {
+        "type": "shoutOrBlow",
+        "keywords": [
+          "바람아 불어라",
+          "바람아"
+        ],
+        "onSuccess": [
+          {
+            "type": "fanLevelStep",
+            "value": 1,
+            "max": 3
+          },
+          {
+            "type": "sound",
+            "audio": "sfx_wind.mp3",
+            "volume": 0.7
+          }
+        ],
+        "fallbackButton": "바람 불기",
+        "timeoutSec": 20,
+        "repeat": 2
+      }
+    },
+    {
+      "id": "wind-strong",
+      "image": "scene_wind-strong.webp",
+      "lines": [
+        {
+          "speaker": "wind",
+          "audio": "wind_12.mp3",
+          "text": "아직도? 그럼 더 세게! 후우우우~!"
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_21.mp3",
+          "text": "바람은 두 볼 가득 바람을 담았다가, 쏴아아 내뿜었어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_22.mp3",
+          "text": "작은 차가 들썩, 하고 흔들리는 것 같았지요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_23.mp3",
+          "text": "그럴수록 나그네는 겉옷 자락을 더 단단히 여몄어요."
+        },
+        {
+          "speaker": "narrator",
+          "tts": true,
+          "text": "{childName}, 겉옷을 꼭 끌어안는 흉내를 내 볼까?",
+          "pauseAfterSec": 2.5
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_24.mp3",
+          "text": "그래요, 그렇게 꼬옥. 놓치지 않게 꼬옥."
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_13.mp3",
+          "text": "어라? 왜 더 꽁꽁 싸매는 거야?"
+        },
+        {
+          "speaker": "porong",
+          "audio": "porong_09.mp3",
+          "text": "짹! 나그네가 겉옷을 꼭 붙들었어요!"
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_14.mp3",
+          "text": "좋아, 마지막이다! 후우우우우~!"
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_25.mp3",
+          "text": "하지만 나그네는 겉옷을 꼭 쥔 채 꿈쩍도 하지 않았어요."
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_15.mp3",
+          "text": "휴우, 휴우… 숨이 차. 더는 못 불겠어."
+        },
+        {
+          "speaker": "porong",
+          "audio": "porong_10.mp3",
+          "text": "짹! 바람님 차례 끝! 겉옷은 그대로예요."
+        }
+      ],
+      "effects": [
+        {
+          "at": 0.0,
+          "type": "sound",
+          "audio": "sfx_wind_strong.mp3",
+          "volume": 0.7
+        },
+        {
+          "at": 0.0,
+          "type": "fanLevel",
+          "value": 3
+        },
+        {
+          "at": 7.9,
+          "type": "seatLift",
+          "durationSec": 0.6,
+          "repeat": 1
+        },
+        {
+          "at": 38.2,
+          "type": "fanLevel",
+          "value": 1
+        },
+        {
+          "at": 42.5,
+          "type": "fanLevel",
+          "value": 0
+        },
+        {
+          "at": 45.9,
+          "type": "ambient",
+          "color": "#DDEEFF",
+          "brightness": 0.4,
+          "fadeSec": 2.0
+        }
+      ]
+    },
+    {
+      "id": "sun-turn",
+      "image": "scene_sun-turn.webp",
+      "lines": [
+        {
+          "speaker": "porong",
+          "audio": "porong_11.mp3",
+          "text": "두 번째 차례는 해님! 시작!"
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_10.mp3",
+          "text": "나는 서두르지 않을게. 살금살금 해 보마."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_26.mp3",
+          "text": "해님은 구름 커튼을 살짝 젖히고 빼꼼 내다보았어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_27.mp3",
+          "text": "그러자 햇살 한 줄기가 작은 차 위로 내려왔어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_28.mp3",
+          "text": "작은 차 지붕이 햇살에 노랗게 물들었어요."
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_11.mp3",
+          "text": "나그네야, 바람 때문에 많이 추웠지?"
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_12.mp3",
+          "text": "이제 내가 포근하게 데워 줄게."
+        },
+        {
+          "speaker": "narrator",
+          "tts": true,
+          "text": "{childName}, 해님을 불러 줘. 해님 반짝반짝!"
+        }
+      ],
+      "effects": [
+        {
+          "at": 0.0,
+          "type": "fanLevel",
+          "value": 0
+        },
+        {
+          "at": 0.0,
+          "type": "temperatureDelta",
+          "value": 1.5
+        },
+        {
+          "at": 0.0,
+          "type": "ambient",
+          "color": "#FF9A3C",
+          "brightness": 0.15,
+          "fadeSec": 3.0
+        },
+        {
+          "at": 9.9,
+          "type": "spotlight",
+          "value": "on"
+        }
+      ],
+      "interaction": {
+        "type": "shout",
+        "keywords": [
+          "해님 반짝반짝",
+          "반짝반짝",
+          "해님 반짝",
+          "반짝"
+        ],
+        "onSuccess": [
+          {
+            "type": "ambientBrightnessStep",
+            "value": 0.2,
+            "max": 0.8
+          },
+          {
+            "type": "seatHeat",
+            "value": 1
+          },
+          {
+            "type": "sound",
+            "audio": "sfx_sun_shimmer.mp3",
+            "volume": 0.5
+          }
+        ],
+        "fallbackButton": "해님 반짝",
+        "timeoutSec": 20,
+        "repeat": 2
+      }
+    },
+    {
+      "id": "coat-off",
+      "image": "scene_coat-off.webp",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "audio": "narrator_29.mp3",
+          "text": "햇살이 소복소복 내려앉자, 차 안이 포근포근해졌어요."
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_13.mp3",
+          "text": "반짝, 반짝, 한 번 더 반짝."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_30.mp3",
+          "text": "해님이 세 번 웃자, 공기가 보송보송 따뜻해졌지요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_31.mp3",
+          "text": "포근한 기운이 느껴지나요?"
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_14.mp3",
+          "text": "나그네야, 이제 좀 따뜻하니?"
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_32.mp3",
+          "text": "나그네는 꼭 쥐고 있던 손을 스르르 풀었어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_33.mp3",
+          "text": "그리고 겉옷 단추를 하나씩 톡, 톡 풀었지요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_34.mp3",
+          "text": "우리도 앉은 그대로, 겉옷을 벗는 흉내를 내 볼까요?"
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_35.mp3",
+          "text": "단추를 톡, 톡. 팔을 쏙, 쏙.",
+          "pauseAfterSec": 2.5
+        },
+        {
+          "speaker": "porong",
+          "audio": "porong_12.mp3",
+          "text": "벗었다! 나그네가 스스로 겉옷을 벗었어요!"
+        },
+        {
+          "speaker": "porong",
+          "audio": "porong_13.mp3",
+          "text": "짹짹! 이번 내기는 해님 승리!"
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_16.mp3",
+          "text": "으잉? 난 그렇게 세게 불었는데!"
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_15.mp3",
+          "text": "허허, 바람아, 너도 정말 열심히 불었단다."
+        }
+      ],
+      "effects": [
+        {
+          "at": 0.0,
+          "type": "ambientBrightnessStep",
+          "value": 0.1,
+          "max": 0.9
+        },
+        {
+          "at": 0.0,
+          "type": "sound",
+          "audio": "sfx_birds.mp3",
+          "volume": 0.3
+        },
+        {
+          "at": 21.1,
+          "type": "sound",
+          "audio": "sfx_coat_rustle.mp3",
+          "volume": 0.6
+        },
+        {
+          "at": 39.8,
+          "type": "sound",
+          "audio": "sfx_win_bell.mp3",
+          "volume": 0.6
+        }
+      ]
+    },
+    {
+      "id": "why-sun",
+      "image": "scene_why-sun.webp",
+      "lines": [
+        {
+          "speaker": "wind",
+          "audio": "wind_17.mp3",
+          "text": "해님, 어떻게 한 거야? 힘은 내가 더 셌는데."
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_16.mp3",
+          "text": "바람아, 꽉 누르면 누구나 더 꽉 버틴단다."
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_17.mp3",
+          "text": "포근하게 감싸 주면, 마음이 먼저 풀리지."
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_18.mp3",
+          "text": "마음이 먼저 풀린다고? 흐음…"
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_36.mp3",
+          "text": "바람은 처음으로 가만히 생각에 잠겼어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_37.mp3",
+          "text": "억지로 시키는 힘보다, 마음을 녹이는 힘이 더 세대요."
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_18.mp3",
+          "text": "바람아, 네 바람도 세기만 한 게 아니란다."
+        },
+        {
+          "speaker": "porong",
+          "audio": "porong_14.mp3",
+          "text": "짹! 오늘의 하늘 비밀 하나, 배웠다!"
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_19.mp3",
+          "text": "그럼 나도 해 볼래. 이번엔 다르게!"
+        }
+      ],
+      "effects": [
+        {
+          "at": 0.0,
+          "type": "ambient",
+          "color": "#FFE08A",
+          "brightness": 0.45,
+          "fadeSec": 3.0
+        },
+        {
+          "at": 0.0,
+          "type": "seatHeat",
+          "value": 0
+        },
+        {
+          "at": 0.0,
+          "type": "spotlight",
+          "value": "off"
+        },
+        {
+          "at": 0.0,
+          "type": "temperatureDelta",
+          "value": 0.5
+        }
+      ]
+    },
+    {
+      "id": "gentle-wind",
+      "image": "scene_gentle-wind.webp",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "audio": "narrator_38.mp3",
+          "text": "햇살 아래, 나그네는 조금 더워졌어요."
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_20.mp3",
+          "text": "나그네야, 이번엔 세게 안 불게. 살랑살랑만."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_39.mp3",
+          "text": "바람은 숨을 아주 작게, 아주 천천히 내쉬었어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_40.mp3",
+          "text": "그리고 아주 살며시, 발끝부터 불어 주었어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_41.mp3",
+          "text": "살랑살랑, 등 뒤로도 시원한 바람이 숭숭."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_42.mp3",
+          "text": "나그네는 기분 좋게 빙그레 웃었어요."
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_21.mp3",
+          "text": "와, 웃었다! 부드럽게 하니까 더 좋아하잖아!"
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_19.mp3",
+          "text": "허허, 바람아, 아주 멋지게 불었구나."
+        },
+        {
+          "speaker": "porong",
+          "audio": "porong_15.mp3",
+          "text": "짹! 이제 오늘 날씨를 정할 시간이에요."
+        },
+        {
+          "speaker": "sun",
+          "audio": "sun_20.mp3",
+          "text": "따뜻한 햇살에, 살랑바람을 조금 섞으면 어떨까?"
+        },
+        {
+          "speaker": "wind",
+          "audio": "wind_22.mp3",
+          "text": "좋아! 해님이랑 나랑 같이 만드는 날씨!"
+        },
+        {
+          "speaker": "porong",
+          "audio": "porong_16.mp3",
+          "text": "오늘 날씨는 맑음, 그리고 살랑살랑! 짹!"
+        }
+      ],
+      "effects": [
+        {
+          "at": 0.0,
+          "type": "ambient",
+          "color": "#BFE3F5",
+          "brightness": 0.4,
+          "fadeSec": 3.0
+        },
+        {
+          "at": 0.0,
+          "type": "temperatureDelta",
+          "value": 0.0
+        },
+        {
+          "at": 11.3,
+          "type": "fanDirection",
+          "value": "floor"
+        },
+        {
+          "at": 11.3,
+          "type": "fanLevel",
+          "value": 1
+        },
+        {
+          "at": 11.3,
+          "type": "sound",
+          "audio": "sfx_breeze.mp3",
+          "volume": 0.4
+        },
+        {
+          "at": 40.1,
+          "type": "fanLevel",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "breathe",
+      "image": "scene_breathe.webp",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "audio": "narrator_43.mp3",
+          "text": "하늘 극장의 이야기가 거의 끝나 가요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_44.mp3",
+          "text": "바람도 해님도 포롱이도, 이제 조용히 쉬려나 봐요."
+        },
+        {
+          "speaker": "narrator",
+          "tts": true,
+          "text": "{childName}, 해님이랑 바람이랑 같이 숨 쉬어 보자."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_45.mp3",
+          "text": "코로 천천히 들이쉬면, 해님처럼 환해져요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_46.mp3",
+          "text": "후~ 하고 길게 내쉬면, 바람처럼 살랑 불어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_47.mp3",
+          "text": "하나, 둘, 셋, 넷. 천천히 같이 해 봐요."
+        }
+      ],
+      "effects": [
+        {
+          "at": 0.0,
+          "type": "ambient",
+          "color": "#F6E7C8",
+          "brightness": 0.3,
+          "fadeSec": 2.0
+        }
+      ],
+      "interaction": {
+        "type": "breathe",
+        "fallbackButton": "그만하기",
+        "repeat": 3,
+        "onSuccess": [
+          {
+            "type": "fanLevel",
+            "value": 0
+          }
+        ],
+        "breath": {
+          "inhaleSec": 4,
+          "exhaleSec": 4,
+          "onInhale": [
+            {
+              "type": "ambientBrightnessStep",
+              "value": 0.08,
+              "max": 0.55,
+              "fadeSec": 3.5
+            },
+            {
+              "type": "fanLevel",
+              "value": 0
+            }
+          ],
+          "onExhale": [
+            {
+              "type": "fanLevel",
+              "value": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ending",
+      "image": "scene_ending.webp",
+      "lines": [
+        {
+          "speaker": "narrator",
+          "audio": "narrator_48.mp3",
+          "text": "참 잘했어요. 숨소리가 바람처럼 살랑살랑했어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_49.mp3",
+          "text": "바람은 오늘, 살살 부는 법을 새로 배웠어요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_50.mp3",
+          "text": "해님은 오늘도 하늘에서 포근하게 웃고 있대요."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_51.mp3",
+          "text": "이제 하늘 극장의 불이 다시 켜져요."
+        },
+        {
+          "speaker": "narrator",
+          "tts": true,
+          "text": "{childName}, 오늘 멋진 나그네가 되어 줘서 고마워."
+        },
+        {
+          "speaker": "narrator",
+          "audio": "narrator_52.mp3",
+          "text": "엄마 아빠랑 오늘 이야기를 나눠 볼까요?"
+        }
+      ],
+      "effects": [
+        {
+          "at": 0.0,
+          "type": "fanLevel",
+          "value": 0
+        },
+        {
+          "at": 12.3,
+          "type": "cabinLight",
+          "value": "on"
+        },
+        {
+          "at": 12.3,
+          "type": "sound",
+          "audio": "sfx_theater_chime.mp3",
+          "volume": 0.5
+        }
+      ]
+    }
+  ],
+  "familyTalkCards": [
+    "해님이랑 바람 중에, 누구 방법이 더 마음에 들었어?",
+    "바람이 세게 불수록, 나그네는 왜 겉옷을 더 꼭 잡았을까?",
+    "누가 억지로 하라고 하면 어떤 기분이 들어?",
+    "오늘 {childName}의 마음을 포근하게 녹여 준 사람은 누구야?",
+    "우리 가족이 내일 날씨를 정한다면, 어떤 날씨로 할까?",
+    "부모 차례: 오늘 내가 바람처럼 했던 순간과 해님처럼 했던 순간은 언제였을까?"
+  ],
+  "cover": "cover.webp"
+}

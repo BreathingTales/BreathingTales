@@ -1,0 +1,43 @@
+{
+  "id": "sun-and-wind",
+  "title": "해님과 바람의 내기",
+  "ageRange": "4-7",
+  "durationSec": 330,
+  "scenes": [
+    {
+      "id": "opening",
+      "lines": [
+        { "speaker": "narrator", "tts": true, "text": "안녕, {childName}! 오늘은 우리 차가 이야기 극장이 될 거야." }
+      ],
+      "effects": [
+        { "at": 0.0, "type": "ambient", "color": "#FFFFFF", "brightness": 0.3, "fadeSec": 3.0 }
+      ]
+    },
+    {
+      "id": "wind-turn",
+      "lines": [
+        { "speaker": "wind", "audio": "wind_01.mp3", "text": "내가 먼저 할게! 후우우~!" },
+        { "speaker": "narrator", "audio": "nar_05.mp3", "text": "휘이잉~ 바람이 불었어요." }
+      ],
+      "effects": [
+        { "at": 0.0, "type": "ambient", "color": "#4A90E2", "brightness": 0.6 },
+        { "at": 0.0, "type": "fanDirection", "value": "face" },
+        { "at": 0.0, "type": "temperatureDelta", "value": -1.5 },
+        { "at": 2.0, "type": "fanLevel", "value": 1 },
+        { "at": 2.0, "type": "sound", "audio": "sfx_wind.mp3", "loop": true }
+      ],
+      "interaction": {
+        "type": "shoutOrBlow",
+        "keywords": ["바람아 불어라", "바람아"],
+        "onSuccess": [{ "type": "fanLevelStep", "value": 1, "max": 3 }],
+        "fallbackButton": "바람 불기",
+        "timeoutSec": 10,
+        "repeat": 2
+      }
+    }
+  ],
+  "familyTalkCards": [
+    "바람이랑 해님 중에 누가 더 좋았어? 왜?",
+    "오늘 누가 {childName}한테 해님처럼 따뜻하게 해 줬어?"
+  ]
+}
