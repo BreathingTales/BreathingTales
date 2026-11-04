@@ -61,3 +61,5 @@ apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
 - [ ] release APK에 Fake·확인용 화면 코드가 없는지 확인 (예: `apkanalyzer dex packages app-release.apk | grep -i fake`)
 - [ ] 최종 권한에 창문 권한이 없는지 확인 (`apkanalyzer manifest permissions app-release.apk`)
 - [ ] `versionCode`·`versionName`을 올리고 [변경 기록](CHANGELOG.md) 작성
+- [ ] 서명된 APK를 `apk/BreathingTales_BreathingTales_release.apk`로 복사 (공모전 제출 규정: `팀명_앱이름_release.apk`, 저장소의 `apk/` 폴더). `.gitignore`는 `apk/` 안의 APK만 추적합니다
+- [ ] 에뮬레이터에 release APK를 설치해 실행 확인 (서명이 다른 debug 앱이 있으면 먼저 지움)

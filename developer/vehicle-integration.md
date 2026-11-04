@@ -109,6 +109,7 @@ MVP는 Pleos SDK 세 개와 AAOS 표준 API만 씁니다.
 ## 7. 에뮬레이터에서 알아 둘 점
 
 - Virtual Console의 `AVD`가 `Disabled`면 앱의 공조 명령이 **오류 없이 무시됩니다.** 탭을 가리면 3초 뒤 저절로 꺼집니다. 해결 방법은 [시작하기](getting-started.md) 3장에 있습니다.
+  - 예외로 **실내등 끄기는 `IllegalArgumentException: 50001`로 실패**합니다. 재생 뒤 "실내 상태 일부를 되돌리지 못했어요 (cabinLight)"가 뜨면 먼저 AVD가 꺼져 있었는지 확인하세요. 이때 다른 명령은 오류 없이 무시되었을 수 있습니다.
 - 무드등 스위치가 Virtual Console에서는 켜짐(`On`)으로 보이는데 SDK는 꺼짐(`OFF`)으로 돌려주는 경우가 있습니다. 앱은 SDK 값을 따르므로 첫 무드등 전환이 어둠에서 시작합니다.
 - `IGNITION_STATE`는 에뮬레이터에 없습니다. 시동 상태는 판단 조건에 넣지 않습니다.
 - 에뮬레이터는 user 빌드라 `cmd car_service get-property-value`가 막혀 있습니다. `dumpsys car_service`와 logcat으로 진단합니다.

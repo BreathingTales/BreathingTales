@@ -9,6 +9,10 @@
 - `ambientBrightnessStep`에 `fadeSec`를 추가했습니다. 「해님과 바람」 숨 맞추기의 들이쉬기에서 3.5초 동안 서서히 밝아집니다.
 - 공개 개발자 문서(`developer/`)
 
+### 변경
+- 제출용 release APK를 `apk/BreathingTales_BreathingTales_release.apk`에 두고, README에 실행 방법·테스트 환경·APK 위치를 적었습니다.
+- release 서명 키를 새로 만들었습니다 (인증서 SHA-256 `85e1750f…5e6ad5d`). 이전 키로 서명한 APK와는 서명이 달라, 설치된 앱을 지우고 다시 설치해야 합니다.
+
 ## 0.1.0 (2026-11-03)
 
 첫 출품 빌드입니다.

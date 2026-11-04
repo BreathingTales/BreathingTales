@@ -7,6 +7,8 @@ captures/
 .cxx/
 .kotlin/
 *.apk
+# 제출용 release APK는 apk/에만 둔다 (공모전 제출 규정)
+!/apk/*.apk
 *.aab
 *.ap_
 *.dex
