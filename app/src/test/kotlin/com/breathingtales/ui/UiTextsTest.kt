@@ -11,6 +11,19 @@ import org.junit.Test
 class UiTextsTest {
 
     @Test
+    fun `복원 안내는 정차하면 되돌릴 항목을 따로 알리고 되돌리면 지운다`() {
+        val failures = listOf("cabinLight", "readingLight[16]", "fanSpeed")
+        val waiting = setOf("cabinLight", "readingLight[16]")
+        assertEquals(
+            "실내 상태 일부를 되돌리지 못했어요: fanSpeed\n기어를 P로 바꾸면 마저 되돌릴게요: cabinLight, readingLight[16]",
+            UiTexts.restoreFailure(failures, waiting, pending = waiting.toList()),
+        )
+        assertEquals("실내 상태 일부를 되돌리지 못했어요: fanSpeed", UiTexts.restoreFailure(failures, waiting, pending = emptyList()))
+        assertNull(UiTexts.restoreFailure(listOf("cabinLight"), setOf("cabinLight"), pending = emptyList()))
+        assertNull(UiTexts.restoreFailure(emptyList(), emptySet(), emptyList()))
+    }
+
+    @Test
     fun `정차 중이면 안내가 없다`() {
         assertNull(UiTexts.parkGuide(emptySet()))
     }

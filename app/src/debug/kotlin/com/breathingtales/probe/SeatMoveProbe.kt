@@ -34,11 +34,10 @@ class SeatMoveProbe(context: Context, private val log: ProbeLog, private val sco
         log.add(S, "=== 시트 이동 확인 시작 ===")
         val heightAreas = await("높이 이동 영역") { ok, fail -> seat.checkMoveSeatHeightCapabilities({ c, l -> ok("${c.accessType}" to l) }, fail) }
         val tiltAreas = await("기울기 이동 영역") { ok, fail -> seat.checkMoveSeatTiltCapabilities({ c, l -> ok("${c.accessType}" to l) }, fail) }
-        await("높이 범위") { ok, fail -> seat.checkSeatHeightCapabilities({ ok(it.describe()) }, fail) }
         await("높이 위치 범위") { ok, fail -> seat.checkSeatHeightPositionCapabilities({ c, m -> ok("${c.accessType} ${m.describe()}") }, fail) }
         await("기울기 위치 범위") { ok, fail -> seat.checkSeatTiltPositionCapabilities({ c, m -> ok("${c.accessType} ${m.describe()}") }, fail) }
-        val occupancy = await("착석 감지 영역") { ok, fail -> seat.checkSeatOccupancyCapabilities({ ok(it) }, fail) }
-        val buckle = await("안전벨트 영역") { ok, fail -> vehicle.getSafety().checkSeatBuckledCapabilities({ ok(it) }, fail) }
+        val occupancy = await("착석 감지 영역") { ok, fail -> seat.checkSeatOccupancyCapabilities({ _, l -> ok(l) }, fail) }
+        val buckle = await("안전벨트 영역") { ok, fail -> vehicle.getSafety().checkSeatBuckledCapabilities({ _, l -> ok(l) }, fail) }
 
         occupancy.orEmpty().forEach { area ->
             await("착석 ${area.label()}") { ok, fail -> seat.getCurrentSeatOccupancy(area, { ok(it) }, fail) }
@@ -58,6 +57,29 @@ class SeatMoveProbe(context: Context, private val log: ProbeLog, private val sco
             pulseAndReturn("기울기", tiltArea, ::readTilt, ::moveTilt, ::watchTilt)
         }
         log.add(S, "=== 시트 이동 확인 끝 ===")
+    }
+
+    /**
+     * 시트를 움직이지 않고 SDK가 돌려주는 값만 읽는다 (`--ez seatRead true`).
+     * 같은 때 `/vehicle/state`의 seat.positions·occupied와 비교해 SDK 위치·착석이 시뮬레이터와 이어져 있는지 본다
+     */
+    fun runReadOnly() = scope.launch {
+        delay(1_500)
+        log.add(S, "=== 시트 값 읽기 시작 ===")
+        val heightAreas = await("높이 위치 범위") { ok, fail -> seat.checkSeatHeightPositionCapabilities({ _, m -> ok(m) }, fail) }
+        heightAreas?.keys.orEmpty().forEach { area ->
+            readHeight(area).let { log.add(S, "높이 ${area.label()} = $it") }
+            readTilt(area).let { log.add(S, "기울기 ${area.label()} = $it") }
+        }
+        val occupancy = await("착석 감지 영역") { ok, fail -> seat.checkSeatOccupancyCapabilities({ _, l -> ok(l) }, fail) }
+        occupancy.orEmpty().forEach { area ->
+            await("착석 ${area.label()}") { ok, fail -> seat.getCurrentSeatOccupancy(area, { ok(it) }, fail) }
+        }
+        val buckle = await("안전벨트 영역") { ok, fail -> vehicle.getSafety().checkSeatBuckledCapabilities({ _, l -> ok(l) }, fail) }
+        buckle.orEmpty().forEach { area ->
+            await("벨트 ${area.label()}") { ok, fail -> seat.getCurrentSeatBeltBuckledState(area, { ok(it) }, fail) }
+        }
+        log.add(S, "=== 시트 값 읽기 끝 ===")
     }
 
     /**

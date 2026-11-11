@@ -37,6 +37,22 @@ object UiTexts {
         AbortReason.StoppedByParent, AbortReason.Cancelled -> null
     }
 
+    /**
+     * 끝 화면의 복원 안내. 모두 되돌렸으면 null.
+     * @param failures 복원에서 되돌리지 못한 항목
+     * @param waiting 그중 다시 정차하면 되돌리기로 한 항목 (끝날 때의 `SafetyGuard.pendingRestore`)
+     * @param pending 지금도 남아 있는 항목. [waiting]에 있었는데 여기 없으면 그새 되돌린 것이다
+     */
+    fun restoreFailure(failures: List<String>, waiting: Set<String>, pending: List<String>): String? {
+        val left = failures.filter { it !in waiting || it in pending }
+        val later = left.filter { it in pending }
+        val now = left - later.toSet()
+        return listOfNotNull(
+            now.takeIf { it.isNotEmpty() }?.let { "실내 상태 일부를 되돌리지 못했어요: ${it.joinToString()}" },
+            later.takeIf { it.isNotEmpty() }?.let { "기어를 P로 바꾸면 마저 되돌릴게요: ${it.joinToString()}" },
+        ).joinToString("\n").ifEmpty { null }
+    }
+
     fun pauseMessage(reason: PauseReason): String = when (reason) {
         PauseReason.PARENT -> "잠시 멈췄어요"
         PauseReason.AUDIO_FOCUS -> "길 안내나 전화 때문에 잠시 멈췄어요"

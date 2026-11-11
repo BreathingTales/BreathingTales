@@ -315,10 +315,10 @@ class PleosVehicleAdapter @Inject constructor(
             }
         }.orEmpty().mapKeys { it.key.zoneId() }
         val occupancyZones = orNull("착석 감지 영역") {
-            pleosCall<List<SeatArea>>("착석 감지 영역") { ok, ng -> seat.checkSeatOccupancyCapabilities({ list -> ok(list) }, ng) }
+            pleosCall<List<SeatArea>>("착석 감지 영역") { ok, ng -> seat.checkSeatOccupancyCapabilities({ _, list -> ok(list) }, ng) }
         }.orEmpty().map { it.zoneId() }.toSet()
         val buckleZones = orNull("안전벨트 영역") {
-            pleosCall<List<SeatArea>>("안전벨트 영역") { ok, ng -> vehicle.getSafety().checkSeatBuckledCapabilities({ list -> ok(list) }, ng) }
+            pleosCall<List<SeatArea>>("안전벨트 영역") { ok, ng -> vehicle.getSafety().checkSeatBuckledCapabilities({ _, list -> ok(list) }, ng) }
         }.orEmpty().map { it.zoneId() }.toSet()
         val liftSeats = moveHeight
             .filter { area -> area.values.map { it.name } == listOf(FRONT_PASSENGER) }

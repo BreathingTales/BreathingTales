@@ -8,8 +8,14 @@
 - 무드등 전환: `ambient`의 `fadeSec` 동안 지금 조명에서 목표 색·밝기로 서서히 바꿉니다. `restore`의 `fadeSec`도 무드등을 시작 전 조명으로 서서히 돌린 뒤 복원합니다.
 - `ambientBrightnessStep`에 `fadeSec`를 추가했습니다. 「해님과 바람」 숨 맞추기의 들이쉬기에서 3.5초 동안 서서히 밝아집니다.
 - 공개 개발자 문서(`developer/`)
+- (debug 전용) 오디오 포커스 손실을 만드는 `FocusStealReceiver`(내비 안내·통화·다른 미디어), 시트를 움직이지 않고 SDK 값만 읽는 확인 화면 모드(`--ez seatRead true`)
+- 열선이 없는 차에서 이야기 전체가 이어지는지 확인하는 단위 테스트
+
+### 고침
+- 연출 중 기어를 P에서 바꾸면 실내등·독서등을 되돌리지 못하던 문제. 차가 P가 아니면 등 스위치를 거부하므로, 다시 정차하는 순간 되돌립니다. 그 전에 다음 이야기를 시작하면 그 이야기가 끝날 때 처음 상태로 되돌립니다.
 
 ### 변경
+- 착석·안전벨트 영역 조회를 SDK 2.3.2에서 deprecated된 형태 대신 `CapabilityConfig`를 함께 받는 형태로 바꿨습니다. 읽는 차량 속성은 같습니다.
 - 제출용 release APK를 `apk/BreathingTales_BreathingTales_release.apk`에 두고, README에 실행 방법·테스트 환경·APK 위치를 적었습니다.
 - release 서명 키를 새로 만들었습니다 (인증서 SHA-256 `85e1750f…5e6ad5d`). 이전 키로 서명한 APK와는 서명이 달라, 설치된 앱을 지우고 다시 설치해야 합니다.
 

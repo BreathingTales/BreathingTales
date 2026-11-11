@@ -79,6 +79,7 @@ class ProbeActivity : ComponentActivity() {
         if (intent.getBooleanExtra("extrasCheck", false)) extras.runAll()
         if (intent.getBooleanExtra("seatCheck", false)) seatMove.runAll()
         if (intent.getBooleanExtra("seatNoStop", false)) seatMove.runNoStop()
+        if (intent.getBooleanExtra("seatRead", false)) seatMove.runReadOnly()
         vehicle.initialize()
 
         setContent {

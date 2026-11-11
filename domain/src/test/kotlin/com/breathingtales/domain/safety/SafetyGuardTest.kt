@@ -9,6 +9,7 @@ import com.breathingtales.domain.model.LampSwitch
 import com.breathingtales.domain.port.VehicleEffectPort
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -252,6 +253,63 @@ class SafetyGuardTest {
         assertEquals(SafetyMonitor.LampControl(requestedOn = true, sent = false), guard.monitor.value.spotlight)
         guard.restore()
         assertTrue(port.calls.none { it.startsWith("cabinLight") || it.startsWith("readingLight") })
+    }
+
+    // ---- 기어를 바꿔 중단했을 때 등 복원 (P가 아니면 차가 등 스위치를 거부) ----
+
+    /** 실내등을 켠 연출을 기어 D에서 복원한다. 차는 등 스위치만 거부한다 */
+    private suspend fun restoreInDriveWithLampRejected(): List<String> {
+        port.capabilities = lightCapabilities
+        port.snapshot = poweredOn.copy(cabinLight = LampSwitch.OFF, readingLights = mapOf(REAR_LEFT to LampSwitch.OFF))
+        guard.begin(Intensity.HIGH)
+        guard.apply(Effect.CabinLight(true))
+        guard.apply(Effect.Spotlight(true))
+        states.state.value = PARKED.copy(gear = Gear.DRIVE)
+        port.failing += listOf("cabinLight", "readingLight")
+        return guard.restore()
+    }
+
+    @Test
+    fun `기어를 바꿔 등을 되돌리지 못하면 다시 정차할 때 되돌린다`() = runTest {
+        backgroundScope.launch { guard.watchPendingRestore() }
+        assertEquals(listOf("cabinLight", "readingLight[16]"), restoreInDriveWithLampRejected())
+        assertEquals(listOf("cabinLight", "readingLight[16]"), guard.pendingRestore.value)
+
+        port.failing.clear()
+        port.calls.clear()
+        states.state.value = PARKED
+        runCurrent()
+
+        assertEquals(listOf("cabinLight=OFF", "readingLight[16]=OFF"), port.calls)
+        assertEquals(emptyList<String>(), guard.pendingRestore.value)
+        assertEquals(emptyList<String>(), guard.monitor.value.restoreFailures)
+    }
+
+    @Test
+    fun `정차가 아닌 동안에는 등을 다시 보내지 않는다`() = runTest {
+        backgroundScope.launch { guard.watchPendingRestore() }
+        restoreInDriveWithLampRejected()
+        port.calls.clear()
+        states.state.value = PARKED.copy(gear = Gear.DRIVE, speedMps = 5f)
+        runCurrent()
+        assertEquals(emptyList<String>(), port.calls)
+        assertEquals(listOf("cabinLight", "readingLight[16]"), guard.pendingRestore.value)
+    }
+
+    @Test
+    fun `되돌리기 전에 다음 연출을 시작하면 남은 등을 이어받아 그 연출이 끝날 때 되돌린다`() = runTest {
+        restoreInDriveWithLampRejected()
+        // 지난 연출이 켠 실내등이 그대로라 지금 읽으면 켜짐이다. 다시 정차했지만 차는 여전히 거부한다
+        port.snapshot = port.snapshot.copy(cabinLight = LampSwitch.ON, readingLights = mapOf(REAR_LEFT to LampSwitch.ON))
+        states.state.value = PARKED
+        assertTrue(guard.begin(Intensity.HIGH))
+        assertEquals(emptyList<String>(), guard.pendingRestore.value)
+
+        port.failing.clear()
+        port.calls.clear()
+        assertEquals(emptyList<String>(), guard.restore())
+        // 이번 연출이 등을 건드리지 않았어도, 켜짐이 아니라 처음 시작 상태(꺼짐)로 되돌린다
+        assertEquals(listOf("cabinLight=OFF", "readingLight[16]=OFF"), port.calls.filter { it.contains("Light") })
     }
 
     // ---- 무드등 전환 (fadeSec) ----

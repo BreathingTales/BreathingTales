@@ -31,8 +31,11 @@ sealed interface PlayScreenState {
     /** 엔진이 재생 중. [playback]은 엔진 상태 그대로 */
     data class Running(val story: Story, val childName: String) : PlayScreenState
 
-    /** 엔진이 끝남 (완료 또는 중단). 화면이 다음으로 넘어가거나 안내를 띄운다 */
-    data class Ended(val story: Story?, val result: PlaybackState) : PlayScreenState
+    /**
+     * 엔진이 끝남 (완료 또는 중단). 화면이 다음으로 넘어가거나 안내를 띄운다.
+     * [waitingForPark]는 되돌리지 못해 다시 정차하면 되돌릴 항목 (끝날 때의 [SafetyGuard.pendingRestore])
+     */
+    data class Ended(val story: Story?, val result: PlaybackState, val waitingForPark: Set<String> = emptySet()) : PlayScreenState
 
     data class Failed(val message: String) : PlayScreenState
 }
@@ -47,7 +50,7 @@ class PlayViewModel @Inject constructor(
     private val stories: StoryRepository,
     private val settings: SettingsRepository,
     private val engine: PlayStoryUseCase,
-    guard: SafetyGuard,
+    private val guard: SafetyGuard,
     vehicleStates: VehicleStateRepository,
     emulator: EmulatorSeatState,
 ) : ViewModel() {
@@ -64,6 +67,9 @@ class PlayViewModel @Inject constructor(
     val demoHud: Boolean = settings.settings.value.demoHud
     val safetyMonitor: StateFlow<SafetyMonitor> = guard.monitor
     val vehicleState: StateFlow<VehicleState> = vehicleStates.state
+
+    /** 되돌리지 못해 다시 정차하기를 기다리는 항목. 앱이 정차를 보고 되돌리면 빠진다 ([BreathingTalesApp][com.breathingtales.BreathingTalesApp]) */
+    val pendingRestore: StateFlow<List<String>> = guard.pendingRestore
 
     /**
      * 시연 모드의 에뮬레이터에서만: Virtual Console AVD 상태를 1초마다 읽는다.
@@ -120,7 +126,7 @@ class PlayViewModel @Inject constructor(
             _screen.value = PlayScreenState.Failed("앞 이야기를 정리하는 중이에요. 잠시 뒤에 다시 시작해 주세요")
             return
         }
-        _screen.value = PlayScreenState.Ended(story, result)
+        _screen.value = PlayScreenState.Ended(story, result, guard.pendingRestore.value.toSet())
     }
 
     companion object {

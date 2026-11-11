@@ -84,6 +84,8 @@ MVP는 Pleos SDK 세 개와 AAOS 표준 API만 씁니다.
 - 앱은 50ms마다 위치를 읽다가 목표나 시간 상한에서 멈춤 명령을 보냅니다.
 - 착석은 `Seat.getCurrentSeatOccupancy`, 안전벨트는 `Seat.getCurrentSeatBeltBuckledState`로 읽습니다.
 - **에뮬레이터 SDK는 시트 위치를 늘 0으로, 안전벨트를 늘 false로 돌려줍니다.** 어댑터는 에뮬레이터(`Build.HARDWARE` = `ranchu`)의 위치 0을 "읽지 못함"으로 바꿔 시트 연출을 건너뜁니다.
+- 에뮬레이터 SDK의 착석은 Virtual Console과 **반대로** 읽힙니다 (앉음 → false, 빈자리 → true). SDK는 원시값 1을 앉음으로 보는데, AAOS 표준 `VehicleSeatOccupancyState`에서 1은 VACANT, 2가 OCCUPIED라서 생기는 것으로 보입니다. 실차에서도 같다면 어른이 앉아 있어도 건너뛰는 쪽(안전한 쪽)으로 틀립니다. 시트는 착석과 벨트가 모두 true일 때만 움직이므로, 빈자리가 앉음으로 잘못 읽혀도 벨트가 풀려 있으면 움직이지 않습니다.
+- 착석·벨트 영역은 `CapabilityConfig`를 함께 받는 `checkSeatOccupancyCapabilities({ config, list }, …)`·`Safety.checkSeatBuckledCapabilities({ config, list }, …)`로 조회합니다 (목록만 받는 형태는 SDK 2.3.2에서 deprecated).
 - debug 빌드의 시연 모드에서는 `EmulatorSeatState`가 에뮬레이터 안에서 Virtual Console(`127.0.0.1:8088/vehicle/state`)의 실제 위치·착석을 읽습니다. 벨트 정보는 없어 착석으로 대신합니다.
 
 안전 조건은 [안전 설계](safety.md) 4장에 있습니다.
@@ -110,6 +112,7 @@ MVP는 Pleos SDK 세 개와 AAOS 표준 API만 씁니다.
 
 - Virtual Console의 `AVD`가 `Disabled`면 앱의 공조 명령이 **오류 없이 무시됩니다.** 탭을 가리면 3초 뒤 저절로 꺼집니다. 해결 방법은 [시작하기](getting-started.md) 3장에 있습니다.
   - 예외로 **실내등 끄기는 `IllegalArgumentException: 50001`로 실패**합니다. 재생 뒤 "실내 상태 일부를 되돌리지 못했어요 (cabinLight)"가 뜨면 먼저 AVD가 꺼져 있었는지 확인하세요. 이때 다른 명령은 오류 없이 무시되었을 수 있습니다.
+- **기어가 P가 아니면 실내등·독서등 스위치 명령이 `IllegalArgumentException: 50001`로 거부됩니다** (AVD가 켜져 있어도. 2026-11-10 확인). 공조·무드등은 D에서도 받습니다. 그래서 기어를 바꿔 중단하면 등만 남고, 앱은 다시 정차할 때 되돌립니다 ([안전 설계](safety.md) 3장).
 - 무드등 스위치가 Virtual Console에서는 켜짐(`On`)으로 보이는데 SDK는 꺼짐(`OFF`)으로 돌려주는 경우가 있습니다. 앱은 SDK 값을 따르므로 첫 무드등 전환이 어둠에서 시작합니다.
 - `IGNITION_STATE`는 에뮬레이터에 없습니다. 시동 상태는 판단 조건에 넣지 않습니다.
 - 에뮬레이터는 user 빌드라 `cmd car_service get-property-value`가 막혀 있습니다. `dumpsys car_service`와 logcat으로 진단합니다.

@@ -14,7 +14,7 @@
 | `:domain` | `ParkedRuleTest` | 시작 조건, 속도 잡음 허용치 |
 | | `ObserveParkedStateUseCaseTest` | 연출 중 정차 감시, 주차 브레이크 해제 |
 | | `SafetyPolicyTest`, `SafetyLimitsTest` | 허용 범위, 강도 배율 |
-| | `SafetyGuardTest` | 저장·복원 순서, 취소 중 복원, 무드등 전환 값, 시연 HUD 기록 |
+| | `SafetyGuardTest` | 저장·복원 순서, 취소 중 복원, 기어를 바꿔 남은 등을 정차 뒤 되돌리기, 무드등 전환 값, 시연 HUD 기록 |
 | | `SeatLiftTest` | 시트 움직임 조건, 되풀이, 명령 지연이 있을 때 시작 위치 정확히 복귀 |
 | | `StoryValidatorTest` | 동화 범위·파일 검사 |
 | | `PlayStoryUseCaseTest` | 장면 진행, 효과 시각, 참여, 일시정지, 중단, 건너뛰기, 숨 맞추기, 무드등 전환 |
@@ -56,7 +56,7 @@ assertEquals("fanSpeed=2", rig.port.calls.last())
 에뮬레이터 + Virtual Console에서 확인합니다. 결과는 `curl http://127.0.0.1:8088/vehicle/state`로 봅니다.
 
 - [ ] 정상 흐름: 시작 → 바람 장면 풍량 상승 → 해님 장면 온기·빛 → 끝난 뒤 복원 → 가족 대화 카드
-- [ ] 연출 중 기어 P → D: 즉시 중단, 복원
+- [ ] 연출 중 기어 P → D: 즉시 중단, 복원. 실내등·독서등은 다시 P로 놓을 때 복원
 - [ ] 연출 중 도어 열기: 즉시 중단, 복원
 - [ ] 오디오 포커스 손실(내비 안내·전화): 일시정지, 부모가 누르면 재개
 - [ ] 아이 반응 없음: 시간 초과 뒤 이야기 계속
@@ -64,6 +64,14 @@ assertEquals("fanSpeed=2", rig.port.calls.last())
 - [ ] 시트 열선이 없는 차량 설정: 나머지 연출 정상
 
 연출 중 주차 브레이크 해제는 Virtual Console에 조작 수단이 없어 단위 테스트로만 확인합니다.
+
+오디오 포커스 손실은 debug 빌드의 `FocusStealReceiver`로 만듭니다. 재생 화면을 가리지 않고 포커스만 잠깐 가져갑니다 (logcat `BTProbe` `[Focus]`).
+
+```
+adb shell am broadcast --user 10 -n com.breathingtales/.probe.FocusStealReceiver --es kind nav --ei ms 5000
+```
+
+`kind`는 `nav`(내비 안내), `call`(통화), `media`(다른 미디어 앱이 계속 가져감), `ms`는 잡고 있을 시간(최대 8000)입니다. 포커스가 돌아와도 저절로 이어 재생하지 않고, 「다시 듣기」를 눌러야 이어집니다.
 
 ## 4. 시연 모드
 
@@ -78,7 +86,8 @@ assertEquals("fanSpeed=2", rig.port.calls.last())
 | 증상 | 원인과 해결 |
 |---|---|
 | 앱이 보낸 공조 명령이 반영되지 않음 (오류 없음) | Virtual Console의 AVD가 꺼짐. `availability.available`이 `false`인지 확인하고 탭을 화면에 보이게 두거나 keepalive를 띄움 |
-| 재생 뒤 "되돌리지 못했어요 (cabinLight)", logcat에 `실내등 OFF 실패: 50001` | 위와 같음. AVD가 꺼지면 실내등 끄기만 오류로 돌아옴 |
+| 기어를 바꿔 멈춘 뒤 "기어를 P로 바꾸면 마저 되돌릴게요: cabinLight, readingLight[…]", logcat에 `실내등 OFF 실패: 50001` | 정상 동작. 차는 기어가 P가 아니면 등 스위치를 거부함. 다시 P로 놓으면 앱이 되돌리고 안내가 사라짐 ([안전 설계](safety.md) 3장) |
+| 기어 P인데 "되돌리지 못했어요 (cabinLight)", logcat에 `실내등 OFF 실패: 50001` | AVD가 꺼짐 (위와 같음). AVD가 꺼지면 실내등 끄기만 오류로 돌아옴 |
 | 연출이 끝났는데 공조·조명이 바뀐 채 남음 | 연출 중 앱을 다시 설치했거나 강제 종료됨. 복원은 앱 안에서 실행되므로 Virtual Console에서 직접 되돌림 |
 | 외치기·숨 불기가 인식되지 않음 | 에뮬레이터를 마이크 연결 **뒤에** 다시 켰는지 확인. 숨 불기는 부모 설정 민감도 조절. 대체 버튼은 늘 동작 |
 | 시트가 움직이지 않음 | 에뮬레이터 SDK는 위치를 늘 0으로 읽어 건너뜀. 시연 모드를 켜고 Virtual Console에서 조수석 착석·높이를 설정 |

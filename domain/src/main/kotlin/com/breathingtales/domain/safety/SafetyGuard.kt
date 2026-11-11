@@ -65,8 +65,26 @@ class SafetyGuard(
         val readingLightsTouched = mutableSetOf<ZoneId>()
     }
 
+    /**
+     * 복원하지 못한 등 스위치의 시작 상태. 차는 기어가 P가 아니면 등 스위치 명령을 거부하므로
+     * (Pleos 에뮬레이터 2026-11-10 확인: `IllegalArgumentException: 50001`, 공조·무드등은 받음)
+     * 기어를 바꿔 중단하면 등만 남는다. 다시 정차하면 [watchPendingRestore]가, 그 전에 다음 연출이 시작되면 [begin]이 되돌린다.
+     */
+    private class PendingLamps(
+        var cabinLight: LampSwitch? = null,
+        val readingLights: MutableMap<ZoneId, LampSwitch> = mutableMapOf(),
+    ) {
+        fun names(): List<String> =
+            listOfNotNull(cabinLight?.let { "cabinLight" }) + readingLights.keys.map { "readingLight[${it.raw}]" }
+    }
+
     private val mutex = Mutex()
     private var session: Session? = null
+    private var pendingLamps = PendingLamps()
+    private val _pendingRestore = MutableStateFlow<List<String>>(emptyList())
+
+    /** 복원하지 못해 다시 정차하기를 기다리는 항목 ([SafetyMonitor.restoreFailures]와 같은 이름). 되돌리면 빠진다 */
+    val pendingRestore: StateFlow<List<String>> = _pendingRestore.asStateFlow()
 
     private val _monitor = MutableStateFlow(SafetyMonitor())
 
@@ -83,8 +101,19 @@ class SafetyGuard(
         check(session == null) { "이미 연출 중" }
         if (!isParked()) return false
 
+        // 지난 연출이 남긴 등부터 되돌린다. 그래도 남으면 이번 시작 상태로 이어받아 이번 복원이 되돌린다
+        // (지금 상태를 그대로 저장하면 지난 연출이 바꾼 값을 시작 상태로 착각한다)
+        retryPendingLamps()
+        val carried = pendingLamps
+        pendingLamps = PendingLamps()
+        _pendingRestore.value = emptyList()
+
         val capabilities = port.capabilities()
         var snapshot = port.readSnapshot()
+        snapshot = snapshot.copy(
+            cabinLight = carried.cabinLight ?: snapshot.cabinLight,
+            readingLights = snapshot.readingLights + carried.readingLights,
+        )
         if (snapshot.hvacPowerOn != true) {
             // 전원을 못 켜도 조명·시트 연출은 이어 간다. 기준 온도가 없으면 온도 효과만 건너뛴다
             if (attempt { port.setHvacPower(true) } != null) {
@@ -97,7 +126,10 @@ class SafetyGuard(
                 }
             }
         }
-        session = Session(snapshot, capabilities, SafetyPolicy(capabilities, intensity, limits), allowSeatMotion)
+        session = Session(snapshot, capabilities, SafetyPolicy(capabilities, intensity, limits), allowSeatMotion).apply {
+            cabinLightTouched = carried.cabinLight != null
+            readingLightsTouched += carried.readingLights.keys
+        }
         _monitor.value = SafetyMonitor(active = true, intensity = intensity)
         true
     }
@@ -274,16 +306,54 @@ class SafetyGuard(
             snapshot.seatHeatLevels.forEach { (zone, level) ->
                 step("seatHeat[${zone.raw}]") { port.setSeatHeat(zone, level) }
             }
-            snapshot.cabinLight?.takeIf { ending.cabinLightTouched }?.let { step("cabinLight") { port.setCabinLight(it) } }
+            // 실패한 등은 다시 정차하면 되돌리도록 남긴다 ([PendingLamps])
+            val lamps = PendingLamps()
+            snapshot.cabinLight?.takeIf { ending.cabinLightTouched }?.let { switch ->
+                step("cabinLight") { port.setCabinLight(switch) }
+                if ("cabinLight" in failed) lamps.cabinLight = switch
+            }
             snapshot.readingLights.filterKeys { it in ending.readingLightsTouched }.forEach { (zone, switch) ->
-                step("readingLight[${zone.raw}]") { port.setReadingLight(zone, switch) }
+                val name = "readingLight[${zone.raw}]"
+                step(name) { port.setReadingLight(zone, switch) }
+                if (name in failed) lamps.readingLights[zone] = switch
             }
             if (snapshot.hvacPowerOn == false) step("hvacPower") { port.setHvacPower(false) }
             // 시트는 연출 안에서 이미 되돌렸다. 되돌리지 못한 경우만 알린다 (위치를 모른 채 더 내리지는 않는다)
             ending.seatLiftUnrestored?.let { failed += "seatHeight[${it.raw}]" }
             _monitor.update { it.copy(active = false, restoreFailures = failed.toList()) }
+            pendingLamps = lamps
+            _pendingRestore.value = lamps.names()
             failed
         }
+    }
+
+    /**
+     * 복원하지 못한 등([pendingRestore])을 다시 정차할 때마다 되돌린다. 앱이 살아 있는 동안 한 번 띄워 두며 끝나지 않는다.
+     * 연출 중에는 건드리지 않는다 (그 연출의 [begin]이 이미 이어받았다).
+     */
+    suspend fun watchPendingRestore() {
+        vehicleStates.state.collect { state ->
+            if (_pendingRestore.value.isEmpty() || ParkedRule.evaluate(state) != ParkedState.Parked) return@collect
+            mutex.withLock {
+                if (session == null) withContext(NonCancellable) { retryPendingLamps() }
+            }
+        }
+    }
+
+    /** [pendingLamps]를 다시 보내고, 되돌린 항목은 남은 목록과 [SafetyMonitor.restoreFailures]에서 뺀다. [mutex] 안에서 부른다 */
+    private suspend fun retryPendingLamps() {
+        val lamps = pendingLamps
+        if (lamps.names().isEmpty() || !isParked()) return
+        lamps.cabinLight?.let { switch ->
+            if (attempt { port.setCabinLight(switch) } != null) lamps.cabinLight = null
+        }
+        lamps.readingLights.toMap().forEach { (zone, switch) ->
+            if (attempt { port.setReadingLight(zone, switch) } != null) lamps.readingLights.remove(zone)
+        }
+        val left = lamps.names()
+        val restored = _pendingRestore.value.toSet() - left.toSet()
+        _pendingRestore.value = left
+        if (restored.isNotEmpty()) _monitor.update { m -> m.copy(restoreFailures = m.restoreFailures?.minus(restored)) }
     }
 
     /**

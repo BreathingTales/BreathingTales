@@ -17,6 +17,10 @@
             android:name=".probe.ProbeActivity"
             android:exported="true"
             android:label="숨쉬는 동화 기술 확인" />
+        <!-- probe 전용: 다른 앱이 오디오 포커스를 잠깐 가져가는 상황 (11 통합 테스트) -->
+        <receiver
+            android:name=".probe.FocusStealReceiver"
+            android:exported="true" />
             <!--   디버깅용     -->
 <!--        <intent-filter>-->
 <!--            <action android:name="android.intent.action.MAIN" />-->

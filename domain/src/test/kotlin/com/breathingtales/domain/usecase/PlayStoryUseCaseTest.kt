@@ -199,6 +199,52 @@ class PlayStoryUseCaseTest {
     }
 
     @Test
+    fun `열선이 없는 차에서는 열선만 건너뛰고 같은 성공의 조명·효과음과 복원은 그대로 한다`() = runTest {
+        // 「해님과 바람」 sun-turn과 같은 순서: 밝기 → 열선 → 효과음
+        val sun = Story(
+            id = "sun-and-wind", title = "해님", ageRange = "4-7", durationSec = 30,
+            scenes = listOf(
+                Scene(
+                    id = "sun",
+                    lines = listOf(Line("sun", "해님 차례예요", audio = "sun_01.mp3")),
+                    effects = listOf(TimedEffect(0.0, Effect.Ambient(0xFF9A3C, 0.15f))),
+                    interaction = Interaction(
+                        type = InteractionType.SHOUT,
+                        keywords = listOf("반짝"),
+                        onSuccess = listOf(
+                            Effect.AmbientBrightnessStep(0.2f, max = 0.8f),
+                            Effect.SeatHeat(1),
+                            Effect.Sound("shimmer.mp3"),
+                        ),
+                        fallbackButton = "해님 반짝",
+                        timeoutSec = 10,
+                        repeat = 2,
+                    ),
+                ),
+                Scene(id = "end", lines = emptyList(), effects = listOf(TimedEffect(0.0, Effect.Restore()))),
+            ),
+            familyTalkCards = emptyList(),
+        )
+        val rig = Rig(this, before.copy(seatHeatLevels = emptyMap()))
+        rig.port.capabilities = rig.port.capabilities.copy(seatHeatZones = emptyList())
+        val play = async { rig.engine.play(sun, settings) }
+        advanceTimeBy(1_001); runCurrent()
+        assertTrue(rig.engine.state.value is PlaybackState.WaitingInteraction)
+
+        fun brightness() = rig.port.calls.filter { it.startsWith("ambientBrightness=") }.last().substringAfter('=').toInt()
+        val start = brightness()
+        rig.engine.pressFallback(); runCurrent()
+        val first = brightness()
+        rig.engine.pressFallback()
+
+        // 열선 실패로 성공이 끊기지 않고, 되돌릴 열선도 없어 복원 실패가 없다
+        assertEquals(PlaybackState.Finished(emptyList()), play.await())
+        assertTrue("$start → $first", first > start)
+        assertEquals(2, rig.events("sound shimmer.mp3").size)
+        assertFalse(rig.port.calls.any { it.startsWith("seatHeat") })
+    }
+
+    @Test
     fun `듣기가 실패해도 이야기는 멈추지 않고 대체 버튼으로 참여한다`() = runTest {
         val rig = rig()
         rig.voice.failing = true

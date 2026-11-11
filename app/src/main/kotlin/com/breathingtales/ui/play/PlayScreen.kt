@@ -83,19 +83,28 @@ fun PlayScreen(
                 null
             },
         )
-        is PlayScreenState.Ended -> EndedStory(s.result, onFinished, onExit)
+        is PlayScreenState.Ended -> {
+            val pending by viewModel.pendingRestore.collectAsStateWithLifecycle()
+            EndedStory(s.result, s.waitingForPark, pending, onFinished, onExit)
+        }
     }
 }
 
 @Composable
-private fun EndedStory(result: PlaybackState, onFinished: () -> Unit, onExit: () -> Unit) {
+private fun EndedStory(
+    result: PlaybackState,
+    waitingForPark: Set<String>,
+    pending: List<String>,
+    onFinished: () -> Unit,
+    onExit: () -> Unit,
+) {
     val failures = when (result) {
         is PlaybackState.Finished -> result.restoreFailures
         is PlaybackState.Aborted -> result.restoreFailures
         else -> emptyList()
     }
-    val failureText = failures.takeIf { it.isNotEmpty() }
-        ?.let { "실내 상태 일부를 되돌리지 못했어요: ${it.joinToString()}" }
+    // 기어를 바꿔 멈춘 경우 조명은 다시 P가 되면 되돌린다. 되돌리면 안내가 바뀐다
+    val failureText = UiTexts.restoreFailure(failures, waitingForPark, pending)
 
     when {
         result is PlaybackState.Finished && failureText == null -> LaunchedEffect(Unit) { onFinished() }
