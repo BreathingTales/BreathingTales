@@ -378,7 +378,8 @@ class SafetyGuard(
      * 취소(그만하기·건너뛰기·중단)나 정차 해제는 다음 번을 시작하기 전에 본다.
      */
     private suspend fun seatLift(session: Session, effect: Effect.SeatLift): SafetyMonitor.SeatLiftControl {
-        fun skipped(outcome: SeatLiftOutcome, start: Int? = null) = SafetyMonitor.SeatLiftControl(outcome, start)
+        fun skipped(outcome: SeatLiftOutcome, start: Int? = null) =
+            SafetyMonitor.SeatLiftControl(outcome, start?.let { SafetyMonitor.SeatAxisTrace(it) })
         if (!session.allowSeatMotion) return skipped(SeatLiftOutcome.DISABLED)
         if (session.seatLiftUsed) return skipped(SeatLiftOutcome.ALREADY_USED)
         val range = session.capabilities.seatHeightRange
@@ -398,6 +399,17 @@ class SafetyGuard(
         val times = effect.repeat.coerceIn(1, limits.maxSeatLiftRepeat)
         val upLimitMs = (min(effect.durationSec, limits.maxSeatLiftSec) * 1000).toLong()
         val caller = currentCoroutineContext()[Job]
+        // 시연 HUD가 움직임을 따라가도록 움직이는 동안의 위치를 먼저 올려 둔다 (읽을 때마다 [showSeat]로 갱신)
+        record {
+            it.copy(
+                seatLift = SafetyMonitor.SeatLiftControl(
+                    SeatLiftOutcome.IN_PROGRESS,
+                    height = SafetyMonitor.SeatAxisTrace(start, target, peak = start, now = start),
+                    tilt = tiltStart?.let { s -> SafetyMonitor.SeatAxisTrace(s, tiltTarget, peak = s, now = s) },
+                    repeat = times,
+                ),
+            )
+        }
         return withContext(NonCancellable) {
             var peak = start
             var end: Int? = start
@@ -436,10 +448,13 @@ class SafetyGuard(
                     break
                 }
                 done++
+                val count = done
+                record { m -> m.copy(seatLift = m.seatLift?.copy(done = count)) }
             }
             val outcome = if (session.seatLiftUnrestored != null) SeatLiftOutcome.UNRESTORED else SeatLiftOutcome.DONE
-            val tilt = tiltStart?.let { SafetyMonitor.SeatPositions(it, tiltPeak, tiltEnd) }
-            SafetyMonitor.SeatLiftControl(outcome, start, peak, end, done, times, tilt)
+            val height = SafetyMonitor.SeatAxisTrace(start, target, peak, end, now = end)
+            val tilt = tiltStart?.let { SafetyMonitor.SeatAxisTrace(it, tiltTarget, tiltPeak, tiltEnd, now = tiltEnd) }
+            SafetyMonitor.SeatLiftControl(outcome, height, tilt, done, times)
         }
     }
 
@@ -471,7 +486,7 @@ class SafetyGuard(
         var sent = false
         val upStartedAt = clockMs()
         try {
-            sent = attempt { port.moveSeat(zone, axis, SeatMove.UP) } != null
+            sent = moveSeat(zone, axis, SeatMove.UP) != null
             upElapsedMs = clockMs() - upStartedAt
             if (sent) {
                 var last = start
@@ -479,7 +494,7 @@ class SafetyGuard(
                     delay(SEAT_POLL_MS)
                     upMs += SEAT_POLL_MS
                     upElapsedMs = max(upMs, clockMs() - upStartedAt)
-                    val position = attempt { port.readSeatPosition(zone, axis) } ?: break
+                    val position = readSeat(zone, axis) ?: break
                     peak = max(peak, position)
                     if (position > last) stepUp = max(stepUp, position - last)
                     last = position
@@ -488,7 +503,7 @@ class SafetyGuard(
                 }
             }
         } finally {
-            attempt { port.moveSeat(zone, axis, SeatMove.STOP) }
+            moveSeat(zone, axis, SeatMove.STOP)
         }
 
         var now = settledPosition(zone, axis) ?: peak
@@ -517,12 +532,12 @@ class SafetyGuard(
             val downLimitMs = upElapsedMs * 3 + SEAT_RETURN_MARGIN_MS
             val downStartedAt = clockMs()
             try {
-                if (attempt { port.moveSeat(zone, axis, SeatMove.DOWN) } != null) {
+                if (moveSeat(zone, axis, SeatMove.DOWN) != null) {
                     var last = now
                     while (max(downMs, clockMs() - downStartedAt) < downLimitMs) {
                         delay(SEAT_POLL_MS)
                         downMs += SEAT_POLL_MS
-                        val position = attempt { port.readSeatPosition(zone, axis) } ?: break
+                        val position = readSeat(zone, axis) ?: break
                         if (position < last) stepDown = max(stepDown, last - position)
                         downTravel += last - position
                         last = position
@@ -530,7 +545,7 @@ class SafetyGuard(
                     }
                 }
             } finally {
-                attempt { port.moveSeat(zone, axis, SeatMove.STOP) }
+                moveSeat(zone, axis, SeatMove.STOP)
             }
         }
         var end = settledPosition(zone, axis)
@@ -563,19 +578,19 @@ class SafetyGuard(
             if (!canMove(position) || !allowed() || spentMs + SEAT_NUDGE_MS > budgetMs) return position to spentMs
             val pushedAt = clockMs()
             try {
-                if (attempt { port.moveSeat(zone, axis, move) } == null) return position to spentMs
+                if (moveSeat(zone, axis, move) == null) return position to spentMs
                 // 움직인 게 보이면 바로 멈춘다. 매끄럽게 움직이는 시트는 조금만, 한 칸씩 가는 시트는 한 칸만 간다.
                 // 명령 응답이 늦었으면 그동안 이미 움직였으므로 흐른 시간도 민 시간으로 친다
                 var heldMs = 0L
                 while (max(heldMs, clockMs() - pushedAt) < SEAT_NUDGE_MS) {
                     delay(SEAT_NUDGE_POLL_MS)
                     heldMs += SEAT_NUDGE_POLL_MS
-                    val now = attempt { port.readSeatPosition(zone, axis) } ?: break
+                    val now = readSeat(zone, axis) ?: break
                     if (now != position) break
                 }
                 spentMs += max(heldMs, clockMs() - pushedAt)
             } finally {
-                attempt { port.moveSeat(zone, axis, SeatMove.STOP) }
+                moveSeat(zone, axis, SeatMove.STOP)
             }
             position = settledPosition(zone, axis) ?: return position to spentMs
         }
@@ -589,7 +604,28 @@ class SafetyGuard(
     /** STOP이 늦게 닿아 조금 더 움직일 수 있으므로, 잠시 기다렸다가 멈춘 위치를 읽는다 */
     private suspend fun settledPosition(zone: ZoneId, axis: SeatAxis): Int? {
         delay(SEAT_SETTLE_MS)
-        return attempt { port.readSeatPosition(zone, axis) }
+        return readSeat(zone, axis)
+    }
+
+    /** 시트 이동 명령. 실패하면 null. 보낸 명령을 시연 HUD에 띄운다 */
+    private suspend fun moveSeat(zone: ZoneId, axis: SeatAxis, move: SeatMove): Unit? =
+        attempt { port.moveSeat(zone, axis, move) }?.also { showSeat(axis) { it.copy(move = move) } }
+
+    /** 시트 위치. 읽지 못하면 null. 읽은 위치를 시연 HUD에 띄운다 */
+    private suspend fun readSeat(zone: ZoneId, axis: SeatAxis): Int? =
+        attempt { port.readSeatPosition(zone, axis) }?.also { position ->
+            showSeat(axis) { it.copy(now = position, peak = max(it.peak ?: position, position)) }
+        }
+
+    /** 움직이는 중인 시트 연출의 [axis] 기록을 바꾼다. 두 축이 동시에 불러도 [record]가 원자적으로 합친다 */
+    private fun showSeat(axis: SeatAxis, change: (SafetyMonitor.SeatAxisTrace) -> SafetyMonitor.SeatAxisTrace) = record { m ->
+        val lift = m.seatLift?.takeIf { it.outcome == SeatLiftOutcome.IN_PROGRESS } ?: return@record m
+        m.copy(
+            seatLift = when (axis) {
+                SeatAxis.HEIGHT -> lift.copy(height = lift.height?.let(change))
+                SeatAxis.TILT -> lift.copy(tilt = lift.tilt?.let(change))
+            },
+        )
     }
 
     /** 복원 실패 목록에 쓰는 이름 (`seatHeight[4]`, `seatTilt[4]`) */

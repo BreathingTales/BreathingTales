@@ -2,6 +2,7 @@ package com.breathingtales.domain.safety
 
 import com.breathingtales.domain.model.Airflow
 import com.breathingtales.domain.model.ZoneId
+import com.breathingtales.domain.port.SeatMove
 
 /**
  * SafetyGuard가 마지막으로 처리한 제어를 종류별로 하나씩 담는다 (11 시연 HUD).
@@ -38,21 +39,34 @@ data class SafetyMonitor(
     data class AmbientControl(val colorRgb: Int, val requestedBrightness: Float, val brightness: Int?)
 
     /**
-     * 시트 들썩임 결과와 높이 위치 (시작 → 가장 높이 → 끝), 되돌리기까지 마친 횟수 / 요청 횟수. 읽지 못한 값은 null.
-     * [tilt]는 함께 움직인 방석 기울기 위치. 기울기 없이 높이만 움직였으면 null
+     * 시트 들썩임. 움직이는 동안은 [SeatLiftOutcome.IN_PROGRESS]로 위치를 읽을 때마다 갱신하고, 끝나면 결과로 바뀐다.
+     * [height]는 높이, [tilt]는 함께 움직인 방석 기울기 (기울기 없이 높이만 움직였으면 null).
+     * [done]은 되돌리기까지 마친 횟수, [repeat]은 요청 횟수
      */
     data class SeatLiftControl(
         val outcome: SeatLiftOutcome,
-        val start: Int? = null,
-        val peak: Int? = null,
-        val end: Int? = null,
+        val height: SeatAxisTrace? = null,
+        val tilt: SeatAxisTrace? = null,
         val done: Int = 0,
         val repeat: Int = 0,
-        val tilt: SeatPositions? = null,
-    )
+    ) {
+        val start: Int? get() = height?.start
+        val peak: Int? get() = height?.peak
+        val end: Int? get() = height?.end
+    }
 
-    /** 한 축의 시트 위치 (시작 → 가장 높이 → 끝) */
-    data class SeatPositions(val start: Int, val peak: Int?, val end: Int?)
+    /**
+     * 한 축의 시트 위치: 시작 → 올릴 상한([target]) → 가장 높이 → 끝. 읽지 못한 값은 null.
+     * [now]·[move]는 지금 위치와 지금 보낸 이동 명령 (시연 HUD에서 움직임을 그대로 보여 줌)
+     */
+    data class SeatAxisTrace(
+        val start: Int,
+        val target: Int? = null,
+        val peak: Int? = null,
+        val end: Int? = null,
+        val now: Int? = null,
+        val move: SeatMove = SeatMove.STOP,
+    )
 }
 
 /** 시트 들썩임 결과 (기획서 5장 7번). 건너뛴 이유를 그대로 보여 준다 */
@@ -80,4 +94,7 @@ enum class SeatLiftOutcome {
 
     /** 올렸는데 제자리로 되돌리지 못함 → 부모에게 알림 */
     UNRESTORED,
+
+    /** 움직이는 중 (시연 HUD용). 끝나면 위 결과 중 하나로 바뀐다 */
+    IN_PROGRESS,
 }

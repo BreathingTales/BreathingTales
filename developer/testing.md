@@ -15,7 +15,7 @@
 | | `ObserveParkedStateUseCaseTest` | 연출 중 정차 감시, 주차 브레이크 해제 |
 | | `SafetyPolicyTest`, `SafetyLimitsTest` | 허용 범위, 강도 배율 |
 | | `SafetyGuardTest` | 저장·복원 순서, 취소 중 복원, 기어를 바꿔 남은 등을 정차 뒤 되돌리기, 무드등 전환 값, 시연 HUD 기록 |
-| | `SeatLiftTest` | 시트 움직임 조건, 되풀이, 명령 지연이 있을 때 시작 위치 정확히 복귀, 방석 기울기를 높이와 함께 움직이기 |
+| | `SeatLiftTest` | 시트 움직임 조건, 되풀이, 명령 지연이 있을 때 시작 위치 정확히 복귀, 방석 기울기를 높이와 함께 움직이기, 움직이는 동안 시연 HUD 기록 |
 | | `StoryValidatorTest` | 동화 범위·파일 검사 |
 | | `PlayStoryUseCaseTest` | 장면 진행, 효과 시각, 참여, 일시정지, 중단, 건너뛰기, 숨 맞추기, 무드등 전환 |
 | `:data` | `StoryParserTest` | `story.json` 파싱, 오류 보고, **실제 동화 파일이 검사를 통과하는지** |
@@ -80,6 +80,9 @@ adb shell am broadcast --user 10 -n com.breathingtales/.probe.FocusStealReceiver
 - 정차 조건(기어·속도·도어·UX 제한·주차 브레이크)
 - 바람(단계 → 풍량, 허용 최대), 풍향, 온도(요청 → 영역별 시작·보낸 온도)
 - 열선, 무드등, 시트 움직임 결과(건너뛴 이유 포함), 복원 결과
+- 시트가 움직이는 동안 높이·방석 기울기마다 게이지: 흰 눈금이 시작 위치, 밝은 칸이 올릴 수 있는 범위(시작~10% 위), 점이 지금 위치. 올리는 중은 주황 「올림 ▲」, 되돌리는 중은 파랑 「되돌림 ▼」, 멈춘 위치를 확인하는 사이는 「멈춤」. 범위를 벗어나면 빨강. 끝나면 `40 → 50 → 40 ✓`처럼 시작 → 가장 높이 → 끝을 적고, 간 데까지 옅게 남긴다
+
+Virtual Console의 조수석 착석·높이·기울기는 HTTP로도 바꿀 수 있습니다 (`PUT /vehicle/seat?area=passenger&kind=occupied&value=true`, `kind=position&control=height|tilt&value=40`).
 
 ## 5. 문제 해결
 

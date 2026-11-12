@@ -4,6 +4,7 @@ import com.breathingtales.domain.model.CabinSnapshot
 import com.breathingtales.domain.model.Effect
 import com.breathingtales.domain.model.Gear
 import com.breathingtales.domain.port.SeatAxis
+import com.breathingtales.domain.port.SeatMove
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.TestScope
@@ -196,6 +197,41 @@ class SeatLiftTest {
     }
 
     @Test
+    fun `움직이는 동안 높이·기울기의 지금 위치와 방향을 시연 HUD에 올린다`() = runTest {
+        useVirtualClock()
+        rig.withTilt(30)
+        port.seatSpeedPerSec = 20
+        guard.begin(Intensity.HIGH, allowSeatMotion = true)
+        val pulse = async { guard.apply(lift.copy(repeat = 2)) }
+
+        advanceTimeBy(260); runCurrent() // 올리는 중
+        val rising = guard.monitor.value.seatLift!!
+        assertEquals(SeatLiftOutcome.IN_PROGRESS, rising.outcome)
+        assertEquals(0, rising.done)
+        assertEquals(2, rising.repeat)
+        assertEquals(SeatMove.UP, rising.height?.move)
+        assertEquals(SeatMove.UP, rising.tilt?.move)
+        assertEquals(50, rising.height?.target)
+        assertEquals(40, rising.tilt?.target)
+        assertTrue("높이 ${rising.height?.now}", rising.height?.now in 43..46)
+        assertTrue("기울기 ${rising.tilt?.now}", rising.tilt?.now in 33..36)
+
+        advanceTimeBy(1_000); runCurrent() // 0.6초 올린 뒤 멈춤 확인(0.3초)을 지나 되돌리는 중
+        val returning = guard.monitor.value.seatLift!!
+        assertEquals(SeatLiftOutcome.IN_PROGRESS, returning.outcome)
+        assertEquals(SeatMove.DOWN, returning.height?.move)
+        assertEquals(SeatMove.DOWN, returning.tilt?.move)
+        assertTrue(returning.height!!.peak!! >= 50 - 1)
+
+        pulse.await()
+        val result = guard.monitor.value.seatLift!!
+        assertEquals(SeatLiftOutcome.DONE, result.outcome)
+        assertEquals(2, result.done)
+        assertEquals(SeatMove.STOP, result.height?.move)
+        assertEquals(result.end, result.height?.now)
+    }
+
+    @Test
     fun `앉아서 벨트를 맨 사람이 없으면 움직이지 않는다`() = runTest {
         useVirtualClock()
         port.occupiedAndBuckled.clear()
@@ -235,7 +271,10 @@ class SeatLiftTest {
         port.seatHeights[PASSENGER] = 0
         guard.begin(Intensity.HIGH, allowSeatMotion = true)
         assertTrue(guard.apply(lift))
-        assertEquals(SafetyMonitor.SeatLiftControl(SeatLiftOutcome.DONE, 0, 10, 0, 1, 1), guard.monitor.value.seatLift)
+        assertEquals(
+            SafetyMonitor.SeatLiftControl(SeatLiftOutcome.DONE, SafetyMonitor.SeatAxisTrace(0, 10, 10, 0, now = 0), done = 1, repeat = 1),
+            guard.monitor.value.seatLift,
+        )
         assertStayedWithin(0..10)
     }
 
@@ -414,7 +453,7 @@ class SeatLiftTest {
 
             val trace = r.guard.monitor.value.seatLift!!
             assertEquals("지연 $lag+$extra", SeatLiftOutcome.DONE, trace.outcome)
-            assertEquals("지연 $lag+$extra", SafetyMonitor.SeatPositions(30, 40, 30), trace.tilt)
+            assertEquals("지연 $lag+$extra", SafetyMonitor.SeatAxisTrace(30, 40, 40, 30, now = 30), trace.tilt)
             assertEquals("지연 $lag+$extra", 40, trace.end)
             assertEveryTiltStopped(r.tiltCalls())
             val seen = r.port.seatExtremes(PASSENGER, currentTime - begunAt, SeatAxis.TILT)
@@ -465,7 +504,7 @@ class SeatLiftTest {
 
         val trace = guard.monitor.value.seatLift!!
         assertEquals(SeatLiftOutcome.DONE, trace.outcome)
-        assertEquals(SafetyMonitor.SeatPositions(30, 30, 30), trace.tilt)
+        assertEquals(SafetyMonitor.SeatAxisTrace(30, 40, 30, 30, now = 30), trace.tilt)
         assertTrue(trace.peak!! in 47..50)
         assertEquals(emptyList<String>(), guard.restore())
     }
