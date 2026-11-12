@@ -19,13 +19,15 @@ class SafetyPolicy(
 ) {
 
     /**
-     * 바람 단계(0~5) → 풍량. 최대 풍량 × [SafetyLimits.maxFanRatio] × 강도를 넘지 않게 고르게 나눈다.
+     * 바람 단계(0~5) → 풍량. 허용 풍량은 최대 풍량 × [SafetyLimits.maxFanRatio]이고,
+     * 강도별 위쪽 끝은 최저 풍량과 허용 풍량 사이의 [Intensity.fanSpan] 지점이다.
+     * 단계는 최저 풍량~위쪽 끝을 고르게 나눈다.
      * 전원을 끄지 않고는 바람을 멈출 수 없으므로 0단계는 최저 풍량이다.
      */
     fun fanSpeed(level: Int): Int? {
         val range = capabilities.fanSpeedRange ?: return null
-        val top = floor(range.last * limits.maxFanRatio * intensity.scale).toInt()
-            .coerceAtLeast(range.first)
+        val allowed = floor(range.last * limits.maxFanRatio).toInt().coerceAtLeast(range.first)
+        val top = (range.first + (allowed - range.first) * intensity.fanSpan).roundToInt()
         val ratio = level.coerceIn(0, Effect.FanLevel.MAX).toFloat() / Effect.FanLevel.MAX
         return (range.first + (top - range.first) * ratio).roundToInt()
     }

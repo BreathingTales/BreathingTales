@@ -21,11 +21,22 @@ class SafetyPolicyTest {
     }
 
     @Test
-    fun `강도는 풍량의 위쪽 끝을 줄인다`() {
+    fun `강도는 풍량의 위쪽 끝을 최저 풍량과 허용 풍량 사이에 둔다`() {
+        // 1~8: 허용 6. 약 1+5/3, 중 1+5/2, 강 6
         assertEquals(6, policy(Intensity.HIGH).fanSpeed(5))
         assertEquals(4, policy(Intensity.MEDIUM).fanSpeed(5))
         assertEquals(3, policy(Intensity.LOW).fanSpeed(5))
         assertEquals("0단계는 최저 풍량", 1, policy(Intensity.LOW).fanSpeed(0))
+    }
+
+    @Test
+    fun `최저 풍량이 높은 차에서도 약 강도의 바람이 최저 풍량에 붙지 않는다`() {
+        // 4~10: 허용 8. 약 4+4/3, 중 4+4/2, 강 8
+        val caps = EMULATOR_CAPABILITIES.copy(fanSpeedRange = 4..10)
+        assertEquals(5, SafetyPolicy(caps, Intensity.LOW).fanSpeed(5))
+        assertEquals(6, SafetyPolicy(caps, Intensity.MEDIUM).fanSpeed(5))
+        assertEquals(8, SafetyPolicy(caps, Intensity.HIGH).fanSpeed(5))
+        assertEquals(4, SafetyPolicy(caps, Intensity.HIGH).fanSpeed(0))
     }
 
     @Test
