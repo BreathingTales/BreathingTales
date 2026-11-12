@@ -16,6 +16,7 @@ import com.breathingtales.domain.model.CabinSnapshot
 import com.breathingtales.domain.model.LampSwitch
 import com.breathingtales.domain.model.ZoneId
 import com.breathingtales.domain.port.CabinCapabilities
+import com.breathingtales.domain.port.SeatAxis
 import com.breathingtales.domain.port.SeatMove
 import com.breathingtales.domain.port.VehicleEffectPort
 import javax.inject.Inject
@@ -50,6 +51,8 @@ class PleosVehicleAdapter @Inject constructor(
         val ambient: SeatArea?,
         val rearSeats: Map<ZoneId, SeatArea>,
         val liftSeats: Map<ZoneId, SeatArea>,
+        /** [liftSeats] 중 방석 기울기 이동·위치 읽기도 되는 좌석 */
+        val tiltSeats: Set<ZoneId>,
         val readingLights: Map<ZoneId, SeatArea>,
         val capabilities: CabinCapabilities,
     )
@@ -219,14 +222,22 @@ class PleosVehicleAdapter @Inject constructor(
         pleosCall<Unit>("독서등 $switch") { ok, ng -> light.setReadingLightSwitch(area, switch.toLightSwitch(), { ok(Unit) }, ng) }
     }
 
-    override suspend fun readSeatHeight(zone: ZoneId): Int? {
-        val area = areas().liftSeats[zone] ?: return null
-        val sdk = orNull("시트 높이 읽기") {
-            pleosCall<Int?>("시트 높이 읽기") { ok, ng -> seat.getCurrentSeatHeightPosition(area, ok, ng) }
+    override suspend fun readSeatPosition(zone: ZoneId, axis: SeatAxis): Int? {
+        val areas = areas()
+        val area = areas.liftSeats[zone] ?: return null
+        if (axis == SeatAxis.TILT && zone !in areas.tiltSeats) return null
+        val name = axis.label()
+        val sdk = orNull("$name 읽기") {
+            pleosCall<Int?>("$name 읽기") { ok, ng ->
+                when (axis) {
+                    SeatAxis.HEIGHT -> seat.getCurrentSeatHeightPosition(area, ok, ng)
+                    SeatAxis.TILT -> seat.getCurrentSeatTiltPosition(area, ok, ng)
+                }
+            }
         }
         // 시연 모드(debug): 에뮬레이터 SDK는 늘 0을 돌려주므로 Virtual Console의 실제 위치로 대신 읽는다
         if ((sdk == null || sdk == 0) && emulator.enabled()) {
-            EmulatorSeatState.seatKey(area.values.map { it.name })?.let { key -> emulator.height(key)?.let { return it } }
+            EmulatorSeatState.seatKey(area.values.map { it.name })?.let { key -> emulator.position(key, axis)?.let { return it } }
         }
         // 에뮬레이터 SDK의 0은 실제 위치가 아니다. 읽지 못한 것으로 돌려줘 SafetyGuard가 건너뛰게 한다 (실차의 0은 진짜 맨 아래)
         if (sdk == 0 && EmulatorSeatState.isEmulator) return null
@@ -249,15 +260,22 @@ class PleosVehicleAdapter @Inject constructor(
         return false
     }
 
-    /** FORWARD가 올라가는 방향 (02 문서 4장, 에뮬레이터 확인) */
-    override suspend fun moveSeatHeight(zone: ZoneId, move: SeatMove) {
-        val area = areas().liftSeats[zone] ?: return skip("시트 높이 영역 ${zone.raw}")
+    /** 높이·기울기 모두 FORWARD가 값이 커지는 방향 (02 문서 4장, 에뮬레이터 확인) */
+    override suspend fun moveSeat(zone: ZoneId, axis: SeatAxis, move: SeatMove) {
+        val areas = areas()
+        val area = areas.liftSeats[zone]?.takeIf { axis == SeatAxis.HEIGHT || zone in areas.tiltSeats }
+            ?: return skip("${axis.label()} 영역 ${zone.raw}")
         val control = when (move) {
             SeatMove.UP -> MoveControl.FORWARD
             SeatMove.DOWN -> MoveControl.BACKWARD
             SeatMove.STOP -> MoveControl.STOP
         }
-        pleosSet("시트 높이 $move") { ok, ng -> seat.moveSeatHeight(area, control, ok, ng) }
+        pleosSet("${axis.label()} $move") { ok, ng ->
+            when (axis) {
+                SeatAxis.HEIGHT -> seat.moveSeatHeight(area, control, ok, ng)
+                SeatAxis.TILT -> seat.moveSeatTilt(area, control, ok, ng)
+            }
+        }
     }
 
     private suspend fun readPower(area: SeatArea): Boolean? =
@@ -324,6 +342,17 @@ class PleosVehicleAdapter @Inject constructor(
             .filter { area -> area.values.map { it.name } == listOf(FRONT_PASSENGER) }
             .filter { area -> area.zoneId().let { it in heightPositions && it in occupancyZones && it in buckleZones } }
             .associateBy { it.zoneId() }
+        // 방석 기울기: 들썩일 좌석이 기울기 이동·위치 읽기도 지원하면 높이와 함께 움직인다.
+        // 등받이(moveSeatBackrestAngle)는 뒷좌석 아이 쪽으로 움직이므로 쓰지 않는다 (기획서 5장 7번)
+        val moveTilt = orNull("시트 기울기 이동 영역") {
+            pleosCall<List<SeatArea>>("시트 기울기 이동 영역") { ok, ng -> seat.checkMoveSeatTiltCapabilities({ _, list -> ok(list) }, ng) }
+        }.orEmpty().map { it.zoneId() }.toSet()
+        val tiltPositions = orNull("시트 기울기 위치 범위") {
+            pleosCall<Map<SeatArea, AreaBounds<Int>>>("시트 기울기 위치 범위") { ok, ng ->
+                seat.checkSeatTiltPositionCapabilities({ _, map -> ok(map) }, ng)
+            }
+        }.orEmpty().mapKeys { it.key.zoneId() }
+        val tiltSeats = liftSeats.keys.filter { it in moveTilt && it in tiltPositions }.toSet()
         // 실내등·독서등 (10 대본 재작성). 켜기·끄기를 모두 지원해야 쓴다. 독서등은 아이가 앉는 뒷좌석(ROW_2)만
         val cabinLight = orNull("실내등 지원") {
             pleosCall<List<LightSwitch>>("실내등 지원") { ok, ng -> light.checkCabinLightSwitchCapabilities({ _, list -> ok(list) }, ng) }
@@ -337,6 +366,7 @@ class PleosVehicleAdapter @Inject constructor(
             .keys.associateBy { it.zoneId() }
 
         val heightRange = liftSeats.keys.firstOrNull()?.let { heightPositions[it] }?.let { it.minValue..it.maxValue }
+        val tiltRange = liftSeats.keys.firstOrNull()?.takeIf { it in tiltSeats }?.let { tiltPositions[it] }?.let { it.minValue..it.maxValue }
 
         val capabilities = CabinCapabilities(
             fanSpeedRange = fan?.value?.let { it.minValue..it.maxValue },
@@ -349,6 +379,7 @@ class PleosVehicleAdapter @Inject constructor(
             seatHeatMaxLevel = rearSeats.values.minOfOrNull { it.maxValue } ?: 0,
             seatLiftZones = liftSeats.keys.toList(),
             seatHeightRange = heightRange,
+            seatTiltRange = tiltRange,
             cabinLight = cabinLight,
             spotlightZones = readingLights.keys.toList(),
         )
@@ -360,9 +391,15 @@ class PleosVehicleAdapter @Inject constructor(
             ambient = ambient?.key,
             rearSeats = rearSeats.keys.associateBy { it.zoneId() },
             liftSeats = liftSeats,
+            tiltSeats = tiltSeats,
             readingLights = readingLights,
             capabilities = capabilities,
         )
+    }
+
+    private fun SeatAxis.label() = when (this) {
+        SeatAxis.HEIGHT -> "시트 높이"
+        SeatAxis.TILT -> "시트 기울기"
     }
 
     private fun skip(what: String) {

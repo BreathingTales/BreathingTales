@@ -15,7 +15,7 @@
 | | `ObserveParkedStateUseCaseTest` | 연출 중 정차 감시, 주차 브레이크 해제 |
 | | `SafetyPolicyTest`, `SafetyLimitsTest` | 허용 범위, 강도 배율 |
 | | `SafetyGuardTest` | 저장·복원 순서, 취소 중 복원, 기어를 바꿔 남은 등을 정차 뒤 되돌리기, 무드등 전환 값, 시연 HUD 기록 |
-| | `SeatLiftTest` | 시트 움직임 조건, 되풀이, 명령 지연이 있을 때 시작 위치 정확히 복귀 |
+| | `SeatLiftTest` | 시트 움직임 조건, 되풀이, 명령 지연이 있을 때 시작 위치 정확히 복귀, 방석 기울기를 높이와 함께 움직이기 |
 | | `StoryValidatorTest` | 동화 범위·파일 검사 |
 | | `PlayStoryUseCaseTest` | 장면 진행, 효과 시각, 참여, 일시정지, 중단, 건너뛰기, 숨 맞추기, 무드등 전환 |
 | `:data` | `StoryParserTest` | `story.json` 파싱, 오류 보고, **실제 동화 파일이 검사를 통과하는지** |

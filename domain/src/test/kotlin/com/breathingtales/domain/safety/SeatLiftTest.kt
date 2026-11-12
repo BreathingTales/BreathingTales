@@ -3,6 +3,7 @@ package com.breathingtales.domain.safety
 import com.breathingtales.domain.model.CabinSnapshot
 import com.breathingtales.domain.model.Effect
 import com.breathingtales.domain.model.Gear
+import com.breathingtales.domain.port.SeatAxis
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.TestScope
@@ -32,7 +33,8 @@ class SeatLiftTest {
             seatHeights[PASSENGER] = 40
             occupiedAndBuckled += PASSENGER
         }
-        val guard = SafetyGuard(port, states)
+        // 시트 시간 상한도 가짜 시트와 같은 가상 시계로 잰다
+        val guard = SafetyGuard(port, states, SafetyLimits(), clockMs = { port.now() })
 
         fun seatCalls() = port.calls.filter { it.startsWith("seatHeight") }
     }
@@ -150,6 +152,47 @@ class SeatLiftTest {
         assertEquals(45, guard.monitor.value.seatLift?.peak)
         assertTrue(port.seatHeights.getValue(PASSENGER) in 40..41)
         assertStayedWithin(40..45)
+    }
+
+    /** [axis] 첫 UP을 보낸 때부터 그 다음 STOP을 보낸 때까지 (ms) */
+    private fun firstUpToStopMs(name: String): Long {
+        val times = port.seatCommandTimes.filter { it.second.startsWith(name) }
+        val up = times.first { it.second.endsWith("=UP") }.first
+        return times.first { it.first >= up && it.second.endsWith("=STOP") }.first - up
+    }
+
+    @Test
+    fun `첫 명령 응답이 늦어도 올리는 시간은 명령을 보낸 때부터 1초를 넘지 않는다`() = runTest {
+        useVirtualClock()
+        // 아주 느린 시트: 폭 상한(10)에도, 한 걸음 앞서 멈추기에도 걸리지 않아 시간 상한으로만 멈춘다
+        port.seatSpeedPerSec = 2
+        port.seatFirstReplyLagMs = 900 // 응답을 기다리는 동안 이미 움직인다 (에뮬레이터 첫 명령)
+        guard.begin(Intensity.HIGH, allowSeatMotion = true)
+        guard.apply(Effect.SeatLift(durationSec = 1f))
+
+        // 응답 뒤부터 1초를 세면 UP 뒤 1.9초에 STOP을 보낸다
+        val upMs = firstUpToStopMs("seatHeight")
+        assertTrue("UP → STOP $upMs ms", upMs <= 1_000L)
+        assertEquals(SeatLiftOutcome.DONE, guard.monitor.value.seatLift?.outcome)
+        assertStayedWithin(40..42)
+    }
+
+    @Test
+    fun `첫 명령 응답이 늦어도 기울기도 같은 시간 상한을 지킨다`() = runTest {
+        useVirtualClock()
+        rig.withTilt(30)
+        port.seatSpeedPerSec = 2
+        port.seatFirstReplyLagMs = 900
+        guard.begin(Intensity.HIGH, allowSeatMotion = true)
+        guard.apply(Effect.SeatLift(durationSec = 1f))
+
+        val upMs = firstUpToStopMs("seatHeight")
+        val tiltUpMs = firstUpToStopMs("seatTilt")
+        assertTrue("높이 UP → STOP $upMs ms", upMs <= 1_000L)
+        assertTrue("기울기 UP → STOP $tiltUpMs ms", tiltUpMs <= 1_000L)
+        assertEquals(SeatLiftOutcome.DONE, guard.monitor.value.seatLift?.outcome)
+        val tiltSeen = port.seatExtremes(PASSENGER, currentTime, SeatAxis.TILT)
+        assertTrue("기울기 $tiltSeen", tiltSeen.first >= 30 && tiltSeen.last <= 32)
     }
 
     @Test
@@ -315,6 +358,135 @@ class SeatLiftTest {
         // 0.6초를 다 올렸다면 올리기 0.6 + 멈춤 확인 0.3 + 되돌리기 0.6 + 멈춤 확인 0.3 = 1.8초
         assertTrue("0.6초를 다 채우지 않았다: $currentTime", currentTime < 1_500L)
         assertTrue(port.seatHeights.getValue(PASSENGER) in 40..43)
+    }
+
+    // 방석 기울기: 지원하면 높이와 함께 올렸다가 함께 시작 위치로 되돌린다
+
+    private fun Rig.withTilt(start: Int = 30) = apply {
+        port.capabilities = port.capabilities.copy(seatTiltRange = 0..100)
+        port.seatTilts[PASSENGER] = start
+    }
+
+    private fun Rig.tiltCalls() = port.calls.filter { it.startsWith("seatTilt") }
+
+    /** 첫 명령은 UP이고, 움직이라는 명령마다 바로 STOP이 따른다 */
+    private fun assertEveryTiltStopped(calls: List<String>) {
+        assertEquals("seatTilt[4]=UP", calls.first())
+        calls.forEachIndexed { i, call ->
+            if (!call.endsWith("=STOP")) assertEquals("$calls", "seatTilt[4]=STOP", calls.getOrNull(i + 1))
+        }
+    }
+
+    @Test
+    fun `기울기를 지원하면 높이와 함께 올렸다가 둘 다 시작 위치로 되돌린다`() = runTest {
+        useVirtualClock()
+        rig.withTilt(30)
+        guard.begin(Intensity.HIGH, allowSeatMotion = true)
+        assertTrue(guard.apply(lift.copy(repeat = 3)))
+
+        assertEveryMoveStopped()
+        assertEveryTiltStopped(rig.tiltCalls())
+        // 높이와 기울기의 첫 UP이 다른 명령 사이에 끼지 않고 나란히 나간다
+        val firstUp = port.calls.indexOf("seatHeight[4]=UP")
+        assertEquals("seatTilt[4]=UP", port.calls[firstUp + 1])
+        assertStayedWithin(40..50)
+        val tiltSeen = port.seatExtremes(PASSENGER, currentTime, SeatAxis.TILT)
+        assertTrue("기울기 $tiltSeen 가 30..40 안", tiltSeen.first >= 30 && tiltSeen.last <= 40)
+        val trace = guard.monitor.value.seatLift!!
+        assertEquals(SeatLiftOutcome.DONE, trace.outcome)
+        assertEquals(3, trace.done)
+        val tilt = trace.tilt!!
+        assertEquals(30, tilt.start)
+        assertTrue(tilt.peak!! in 37..40)
+        assertTrue(tilt.end!! in 30..33)
+        assertEquals(emptyList<String>(), guard.restore())
+    }
+
+    @Test
+    fun `에뮬레이터 시트도 기울기까지 10%를 올리고 시작 위치에 정확히 돌아온다`() = runTest {
+        for (lag in listOf(0L, 60L)) for (extra in listOf(0L, 60L)) {
+            val r = Rig().apply { emulatorSeat(lag, extra) }.withTilt(30)
+            useVirtualClock(r)
+            val begunAt = currentTime
+            r.port.now = { currentTime - begunAt }
+            r.guard.begin(Intensity.HIGH, allowSeatMotion = true)
+            assertTrue(r.guard.apply(lift.copy(repeat = 3)))
+
+            val trace = r.guard.monitor.value.seatLift!!
+            assertEquals("지연 $lag+$extra", SeatLiftOutcome.DONE, trace.outcome)
+            assertEquals("지연 $lag+$extra", SafetyMonitor.SeatPositions(30, 40, 30), trace.tilt)
+            assertEquals("지연 $lag+$extra", 40, trace.end)
+            assertEveryTiltStopped(r.tiltCalls())
+            val seen = r.port.seatExtremes(PASSENGER, currentTime - begunAt, SeatAxis.TILT)
+            assertTrue("지연 $lag+$extra: 실제 기울기 $seen", seen.first >= 30 && seen.last <= 40)
+        }
+    }
+
+    @Test
+    fun `기울기 위치를 읽지 못하거나 이미 맨 위면 높이만 움직인다`() = runTest {
+        for (case in listOf("unreadable", "top")) {
+            val r = Rig().withTilt(if (case == "top") 100 else 30)
+            if (case == "unreadable") r.port.seatTiltUnreadable = true
+            useVirtualClock(r)
+            r.guard.begin(Intensity.HIGH, allowSeatMotion = true)
+            assertTrue(case, r.guard.apply(lift))
+
+            val trace = r.guard.monitor.value.seatLift!!
+            assertEquals(case, SeatLiftOutcome.DONE, trace.outcome)
+            assertEquals(case, null, trace.tilt)
+            assertEquals(case, emptyList<String>(), r.tiltCalls())
+            assertEveryMoveStopped(r.seatCalls())
+        }
+    }
+
+    @Test
+    fun `기울기를 되돌리지 못하면 높이는 되돌리고 기울기만 복원 실패로 알린다`() = runTest {
+        useVirtualClock()
+        rig.withTilt(30)
+        port.failing += "seatTilt[4]=DOWN"
+        guard.begin(Intensity.HIGH, allowSeatMotion = true)
+        guard.apply(lift.copy(repeat = 3))
+
+        val trace = guard.monitor.value.seatLift!!
+        assertEquals(SeatLiftOutcome.UNRESTORED, trace.outcome)
+        assertEquals("첫 번에서 멈추고 더 하지 않음", 0, trace.done)
+        assertTrue(port.seatHeights.getValue(PASSENGER) in 40..43)
+        assertEquals("seatTilt[4]=STOP", rig.tiltCalls().last())
+        assertEquals(listOf("seatTilt[4]"), guard.restore())
+    }
+
+    @Test
+    fun `기울기 명령이 거부되면 높이만 들썩이고 실패로 치지 않는다`() = runTest {
+        useVirtualClock()
+        rig.withTilt(30)
+        port.failing += "seatTilt[4]=UP"
+        guard.begin(Intensity.HIGH, allowSeatMotion = true)
+        assertTrue(guard.apply(lift))
+
+        val trace = guard.monitor.value.seatLift!!
+        assertEquals(SeatLiftOutcome.DONE, trace.outcome)
+        assertEquals(SafetyMonitor.SeatPositions(30, 30, 30), trace.tilt)
+        assertTrue(trace.peak!! in 47..50)
+        assertEquals(emptyList<String>(), guard.restore())
+    }
+
+    @Test
+    fun `올리는 중에 정차가 깨지면 높이와 기울기 모두 바로 멈추고 되돌린다`() = runTest {
+        useVirtualClock()
+        rig.withTilt(30)
+        port.seatSpeedPerSec = 20
+        guard.begin(Intensity.HIGH, allowSeatMotion = true)
+        val pulse = async { guard.apply(lift) }
+        advanceTimeBy(120); runCurrent()
+        states.state.value = PARKED.copy(gear = Gear.DRIVE)
+        pulse.await()
+
+        assertEveryMoveStopped()
+        assertEveryTiltStopped(rig.tiltCalls())
+        assertEquals(1, rig.tiltCalls().count { it.endsWith("=UP") })
+        assertTrue("0.6초를 다 채우지 않았다: $currentTime", currentTime < 1_500L)
+        assertTrue(port.seatHeights.getValue(PASSENGER) in 40..43)
+        assertTrue(port.seatTilts.getValue(PASSENGER) in 30..33)
     }
 
     @Test

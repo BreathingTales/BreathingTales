@@ -102,7 +102,7 @@ app/src/main/assets/stories/
 | `fanDirection` | `value` | `face`, `floor` | 풍향 |
 | `temperatureDelta` | `value` | -2~2 (℃) | 시작 온도 기준 상대값 |
 | `seatHeat` | `value` | 0~3 | 뒷좌석 열선. 실제로는 1단까지 |
-| `seatLift` | `durationSec`, `repeat` | 0.1~1초, 1~3 (기본 1) | 조수석을 살짝 올렸다 되돌림. 조건은 [안전 설계](safety.md) 4장 |
+| `seatLift` | `durationSec`, `repeat` | 0.1~1초, 1~3 (기본 1) | 조수석을 살짝 올렸다 되돌림. 차가 지원하면 방석 앞쪽도 함께 올려 몸이 살짝 뒤로 기움. 조건은 [안전 설계](safety.md) 4장 |
 | `ambient` | `color`, `brightness`, `fadeSec` | `#RRGGBB`, 0~1, 0 이상 | 무드등 색과 밝기. `fadeSec` 동안 서서히 바꿈 |
 | `ambientBrightnessStep` | `value`, `max`, `fadeSec` | -1~1, 0~1 (기본 1), 0 이상 (기본 0) | 지금 밝기에서 더하거나 뺌. 앞에서 `ambient`로 색을 정한 뒤에만 동작 |
 | `cabinLight` | `value` | `on`, `off` | 실내등. 시작에 꺼서 극장 불이 꺼지는 느낌을 줌 |

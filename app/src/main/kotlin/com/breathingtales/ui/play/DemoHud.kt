@@ -136,7 +136,8 @@ private fun seatLiftText(lift: SafetyMonitor.SeatLiftControl): String {
             else -> " · ⚠ 시작보다 ${start - end} 아래로 내려감"
         }
     }.orEmpty()
-    return seatLiftReason(lift.outcome) + count + (positions?.let { "  (높이 $it)" } ?: lift.start?.let { "  (높이 $it)" } ?: "") + endNote
+    val tilt = lift.tilt?.let { t -> listOfNotNull(t.start, t.peak, t.end).joinToString(" → ") }?.let { "  (기울기 $it)" }.orEmpty()
+    return seatLiftReason(lift.outcome) + count + (positions?.let { "  (높이 $it)" } ?: lift.start?.let { "  (높이 $it)" } ?: "") + endNote + tilt
 }
 
 private fun seatLiftReason(outcome: SeatLiftOutcome): String = when (outcome) {

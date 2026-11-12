@@ -6,6 +6,7 @@ import com.breathingtales.domain.model.Effect
 import com.breathingtales.domain.model.LampSwitch
 import com.breathingtales.domain.model.ZoneId
 import com.breathingtales.domain.port.CabinCapabilities
+import com.breathingtales.domain.port.SeatAxis
 import com.breathingtales.domain.port.SeatMove
 import com.breathingtales.domain.port.VehicleEffectPort
 import com.breathingtales.domain.repository.VehicleStateRepository
@@ -13,6 +14,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -38,6 +41,11 @@ class SafetyGuard(
     private val port: VehicleEffectPort,
     private val vehicleStates: VehicleStateRepository,
     private val limits: SafetyLimits,
+    /**
+     * 시트 이동 시간을 재는 단조 시계(ms). 시트 명령은 응답이 오기 전부터 움직이므로(첫 명령은 응답까지 약 0.9초,
+     * 02 문서 4장) 기다린 시간만 세면 시간 상한을 넘긴다. 테스트는 가상 시계를 넣는다
+     */
+    private val clockMs: () -> Long = { System.nanoTime() / 1_000_000 },
 ) {
     @Inject
     constructor(port: VehicleEffectPort, vehicleStates: VehicleStateRepository) :
@@ -57,8 +65,8 @@ class SafetyGuard(
         /** 시트 연출은 연출마다 한 번만 (그 한 번 안에서 들썩임을 되풀이할 수 있다) */
         var seatLiftUsed = false
 
-        /** 올린 시트를 제자리로 되돌리지 못했으면 그 영역 */
-        var seatLiftUnrestored: ZoneId? = null
+        /** 올린 시트를 제자리로 되돌리지 못했으면 그 영역과 축 */
+        var seatLiftUnrestored: Pair<ZoneId, Set<SeatAxis>>? = null
 
         /** 연출이 바꾼 조명만 되돌린다 (시작 상태가 AUTO면 다시 쓰는 것만으로도 차량 동작이 바뀔 수 있다) */
         var cabinLightTouched = false
@@ -319,7 +327,7 @@ class SafetyGuard(
             }
             if (snapshot.hvacPowerOn == false) step("hvacPower") { port.setHvacPower(false) }
             // 시트는 연출 안에서 이미 되돌렸다. 되돌리지 못한 경우만 알린다 (위치를 모른 채 더 내리지는 않는다)
-            ending.seatLiftUnrestored?.let { failed += "seatHeight[${it.raw}]" }
+            ending.seatLiftUnrestored?.let { (zone, axes) -> axes.forEach { failed += "${it.callName()}[${zone.raw}]" } }
             _monitor.update { it.copy(active = false, restoreFailures = failed.toList()) }
             pendingLamps = lamps
             _pendingRestore.value = lamps.names()
@@ -358,10 +366,12 @@ class SafetyGuard(
 
     /**
      * 앞좌석을 위로 살짝 올렸다 제자리로 되돌리기를 [Effect.SeatLift.repeat]번 되풀이한다 (기획서 5장 7번).
-     * 시트 이동은 STOP까지 계속 움직이므로 위치를 읽으며 멈춘다. 아래 방향은 시작 위치로 돌아갈 때만 쓰고,
-     * 시작 위치보다 내리지 않는다. 한 번 되돌린 것을 확인한 뒤에만 다시 올린다.
+     * 방석 기울기를 지원하면 높이와 함께 방석 앞쪽도 올려(몸이 살짝 뒤로 기움) 함께 되돌린다. 두 축은 같은 규칙을 따른다:
+     * 시트 이동은 STOP까지 계속 움직이므로 위치를 읽으며 멈추고, 아래 방향은 시작 위치로 돌아갈 때만 쓰며
+     * 시작 위치보다 내리지 않는다. 두 축 모두 되돌린 것을 확인한 뒤에만 다시 올린다.
      *
-     * 실행 조건: 부모가 허용, 연출 중 처음, 운전석이 아닌 앞좌석에 사람이 앉아 벨트를 맴, 위치를 읽을 수 있음.
+     * 실행 조건: 부모가 허용, 연출 중 처음, 운전석이 아닌 앞좌석에 사람이 앉아 벨트를 맴, 높이 위치를 읽을 수 있음.
+     * 기울기는 덤이라 위치를 못 읽거나 이미 맨 위면 높이만 움직인다.
      * 믿을 수 없는 위치(에뮬레이터 SDK의 늘 0)는 어댑터가 null로 돌려주므로, 여기서 읽힌 0은 진짜 맨 아래다 (02 문서 4장).
      *
      * 올리는 중에 정차가 깨지면 바로 멈추고 되돌린다. 올리고 되돌리는 한 번은 취소되지 않고,
@@ -375,10 +385,14 @@ class SafetyGuard(
         if (range == null || session.capabilities.seatLiftZones.isEmpty()) return skipped(SeatLiftOutcome.UNSUPPORTED)
         val zone = session.capabilities.seatLiftZones.firstOrNull { attempt { port.isSeatOccupiedAndBuckled(it) } == true }
             ?: return skipped(SeatLiftOutcome.NOT_OCCUPIED)
-        val start = attempt { port.readSeatHeight(zone) } ?: return skipped(SeatLiftOutcome.POSITION_UNREADABLE)
+        val start = attempt { port.readSeatPosition(zone, SeatAxis.HEIGHT) } ?: return skipped(SeatLiftOutcome.POSITION_UNREADABLE)
         if (start !in range) return skipped(SeatLiftOutcome.POSITION_UNREADABLE, start)
-        val target = min(range.last, start + ceil((range.last - range.first) * limits.maxSeatLiftRatio).toInt())
+        val target = liftTarget(start, range)
         if (target <= start) return skipped(SeatLiftOutcome.AT_TOP, start)
+        val tiltStart = session.capabilities.seatTiltRange?.let { tiltRange ->
+            attempt { port.readSeatPosition(zone, SeatAxis.TILT) }?.takeIf { it in tiltRange && liftTarget(it, tiltRange) > it }
+        }
+        val tiltTarget = tiltStart?.let { liftTarget(it, session.capabilities.seatTiltRange!!) }
         session.seatLiftUsed = true
 
         val times = effect.repeat.coerceIn(1, limits.maxSeatLiftRepeat)
@@ -387,6 +401,8 @@ class SafetyGuard(
         return withContext(NonCancellable) {
             var peak = start
             var end: Int? = start
+            var tiltPeak = tiltStart
+            var tiltEnd = tiltStart
             var done = 0
             for (i in 0 until times) {
                 if (i > 0) {
@@ -395,25 +411,48 @@ class SafetyGuard(
                     // 쉬는 사이에 바뀌었을 수 있다. 정차가 아닌데 UP을 보내면 안 된다
                     if (caller?.isActive == false || !isParked()) break
                 }
-                val bob = bobOnce(zone, start, target, upLimitMs)
+                // 두 축을 함께 올리고 함께 되돌린다. bobOnce는 취소 말고는 예외를 내지 않아, 한 축의 실패가 다른 축의 STOP을 막지 않는다
+                val (bob, tiltBob) = coroutineScope {
+                    val height = async { bobOnce(zone, SeatAxis.HEIGHT, start, target, upLimitMs) }
+                    val tilt = if (tiltStart != null && tiltTarget != null) {
+                        async { bobOnce(zone, SeatAxis.TILT, tiltStart, tiltTarget, upLimitMs) }
+                    } else {
+                        null
+                    }
+                    height.await() to tilt?.await()
+                }
                 peak = max(peak, bob.peak)
                 end = bob.end
-                if (!bob.restored) {
-                    session.seatLiftUnrestored = zone
+                if (tiltBob != null) {
+                    tiltPeak = max(tiltPeak ?: tiltBob.peak, tiltBob.peak)
+                    tiltEnd = tiltBob.end
+                }
+                val unrestored = buildSet {
+                    if (!bob.restored) add(SeatAxis.HEIGHT)
+                    if (tiltBob?.restored == false) add(SeatAxis.TILT)
+                }
+                if (unrestored.isNotEmpty()) {
+                    session.seatLiftUnrestored = zone to unrestored
                     break
                 }
                 done++
             }
             val outcome = if (session.seatLiftUnrestored != null) SeatLiftOutcome.UNRESTORED else SeatLiftOutcome.DONE
-            SafetyMonitor.SeatLiftControl(outcome, start, peak, end, done, times)
+            val tilt = tiltStart?.let { SafetyMonitor.SeatPositions(it, tiltPeak, tiltEnd) }
+            SafetyMonitor.SeatLiftControl(outcome, start, peak, end, done, times, tilt)
         }
     }
+
+    /** [start]에서 범위의 [SafetyLimits.maxSeatLiftRatio]만큼 위 (범위 끝을 넘지 않음) */
+    private fun liftTarget(start: Int, range: IntRange): Int =
+        min(range.last, start + ceil((range.last - range.first) * limits.maxSeatLiftRatio).toInt())
 
     private class Bob(val peak: Int, val end: Int?, val restored: Boolean)
 
     /**
-     * [start]에서 [target]까지(시간 상한 [upLimitMs]) 올렸다가 [start]로 되돌린다.
+     * [axis]를 [start]에서 [target]까지(시간 상한 [upLimitMs]) 올렸다가 [start]로 되돌린다.
      * 끝 위치가 [start] 이상, 한 번 읽는 사이 움직이는 양 이내일 때만 restored=true.
+     * 명령이 실패해도 예외를 내지 않고 멈춘 위치로 판단한다 (함께 움직이는 다른 축을 끊지 않도록).
      *
      * STOP은 늦게 닿는다: 위치를 읽고 STOP을 보내는 사이에도 시트는 움직인다 (에뮬레이터는 100ms마다 5씩,
      * 2026-11-03 확인: 40에서 내려오다 40을 보고 STOP → 35에서 멈춤). 그래서
@@ -421,30 +460,41 @@ class SafetyGuard(
      * 2. 미리 멈춰 한 걸음 이상 남았으면 짧게 밀어([nudge]) 마저 채운다. 한 칸만 가도록 밀므로 넘지 않는다
      * 내려올 때도 같다. 시작 위치보다 내려가지 않고, 시작 위치에 맞춘다.
      */
-    private suspend fun bobOnce(zone: ZoneId, start: Int, target: Int, upLimitMs: Long): Bob {
+    private suspend fun bobOnce(zone: ZoneId, axis: SeatAxis, start: Int, target: Int, upLimitMs: Long): Bob {
+        // upMs는 읽는 사이 기다린 시간(시트 속도를 어림하는 데 씀), upElapsedMs는 UP을 보내기 시작한 뒤 흐른 시간(상한에 씀).
+        // 명령 응답이 늦으면 그동안에도 움직이므로 상한은 둘 중 큰 값으로 잰다
         var upMs = 0L
+        var upElapsedMs = 0L
         var peak = start
         var stepUp = 0
         var upLast = start
+        var sent = false
+        val upStartedAt = clockMs()
         try {
-            port.moveSeatHeight(zone, SeatMove.UP)
-            var last = start
-            while (upMs < upLimitMs && isParked()) {
-                delay(SEAT_POLL_MS)
-                upMs += SEAT_POLL_MS
-                val position = attempt { port.readSeatHeight(zone) } ?: break
-                peak = max(peak, position)
-                if (position > last) stepUp = max(stepUp, position - last)
-                last = position
-                upLast = position
-                if (position + stepUp >= target) break
+            sent = attempt { port.moveSeat(zone, axis, SeatMove.UP) } != null
+            upElapsedMs = clockMs() - upStartedAt
+            if (sent) {
+                var last = start
+                while (upElapsedMs < upLimitMs && isParked()) {
+                    delay(SEAT_POLL_MS)
+                    upMs += SEAT_POLL_MS
+                    upElapsedMs = max(upMs, clockMs() - upStartedAt)
+                    val position = attempt { port.readSeatPosition(zone, axis) } ?: break
+                    peak = max(peak, position)
+                    if (position > last) stepUp = max(stepUp, position - last)
+                    last = position
+                    upLast = position
+                    if (position + stepUp >= target) break
+                }
             }
         } finally {
-            attempt { port.moveSeatHeight(zone, SeatMove.STOP) }
+            attempt { port.moveSeat(zone, axis, SeatMove.STOP) }
         }
 
-        var now = settledHeight(zone) ?: peak
+        var now = settledPosition(zone, axis) ?: peak
         peak = max(peak, now)
+        // 올리라는 명령이 거부됐다. 그대로면 움직이지 않은 것이고, 움직였으면 아래에서 되돌린다
+        if (!sent && now == start) return Bob(peak, now, restored = true)
         if (peak == start && now == start) {
             // 위치가 그대로다. 움직이지 않았거나 위치 읽기가 멈춘 것이라, 모른 채 내리지 않고 알린다
             return Bob(peak, now, restored = false)
@@ -453,9 +503,9 @@ class SafetyGuard(
         // 느린 시트(실차)는 짧게 밀어도 움직이지 않고, STOP이 늦어도 거의 지나치지 않아 밀 필요가 없다
         if (stepUp > 0 && nudgeMoves(upLast - start, upMs)) {
             // 미는 시간도 올리는 시간(최대 1초)에 넣는다
-            val (pushed, spentMs) = nudge(zone, SeatMove.UP, now, upLimitMs - upMs, canMove = { it + stepUp <= target }, allowed = ::isParked)
+            val (pushed, spentMs) = nudge(zone, axis, SeatMove.UP, now, upLimitMs - upElapsedMs, canMove = { it + stepUp <= target }, allowed = ::isParked)
             now = pushed
-            upMs += spentMs
+            upElapsedMs += spentMs
             peak = max(peak, now)
         }
 
@@ -464,26 +514,28 @@ class SafetyGuard(
         var downMs = 0L
         if (now > start) {
             // 올라간 시간보다 넉넉히 기다리되, 시간 상한으로 반드시 멈춘다
-            val downLimitMs = upMs * 3 + SEAT_RETURN_MARGIN_MS
+            val downLimitMs = upElapsedMs * 3 + SEAT_RETURN_MARGIN_MS
+            val downStartedAt = clockMs()
             try {
-                port.moveSeatHeight(zone, SeatMove.DOWN)
-                var last = now
-                while (downMs < downLimitMs) {
-                    delay(SEAT_POLL_MS)
-                    downMs += SEAT_POLL_MS
-                    val position = attempt { port.readSeatHeight(zone) } ?: break
-                    if (position < last) stepDown = max(stepDown, last - position)
-                    downTravel += last - position
-                    last = position
-                    if (position - stepDown <= start) break
+                if (attempt { port.moveSeat(zone, axis, SeatMove.DOWN) } != null) {
+                    var last = now
+                    while (max(downMs, clockMs() - downStartedAt) < downLimitMs) {
+                        delay(SEAT_POLL_MS)
+                        downMs += SEAT_POLL_MS
+                        val position = attempt { port.readSeatPosition(zone, axis) } ?: break
+                        if (position < last) stepDown = max(stepDown, last - position)
+                        downTravel += last - position
+                        last = position
+                        if (position - stepDown <= start) break
+                    }
                 }
             } finally {
-                attempt { port.moveSeatHeight(zone, SeatMove.STOP) }
+                attempt { port.moveSeat(zone, axis, SeatMove.STOP) }
             }
         }
-        var end = settledHeight(zone)
+        var end = settledPosition(zone, axis)
         if (end != null && stepDown > 0 && nudgeMoves(downTravel, downMs)) {
-            end = nudge(zone, SeatMove.DOWN, end, Long.MAX_VALUE, canMove = { it - stepDown >= start }, allowed = { true }).first
+            end = nudge(zone, axis, SeatMove.DOWN, end, Long.MAX_VALUE, canMove = { it - stepDown >= start }, allowed = { true }).first
         }
         // 시작 위치보다 낮으면 규칙 위반이라 성공으로 치지 않는다. 한 걸음 넘게 위면 되돌리지 못한 것
         val restored = end != null && end >= start && end <= start + max(stepDown, 1)
@@ -498,6 +550,7 @@ class SafetyGuard(
      */
     private suspend fun nudge(
         zone: ZoneId,
+        axis: SeatAxis,
         move: SeatMove,
         from: Int,
         budgetMs: Long,
@@ -508,21 +561,23 @@ class SafetyGuard(
         var spentMs = 0L
         repeat(SEAT_NUDGE_TRIES) {
             if (!canMove(position) || !allowed() || spentMs + SEAT_NUDGE_MS > budgetMs) return position to spentMs
+            val pushedAt = clockMs()
             try {
-                port.moveSeatHeight(zone, move)
-                // 움직인 게 보이면 바로 멈춘다. 매끄럽게 움직이는 시트는 조금만, 한 칸씩 가는 시트는 한 칸만 간다
+                if (attempt { port.moveSeat(zone, axis, move) } == null) return position to spentMs
+                // 움직인 게 보이면 바로 멈춘다. 매끄럽게 움직이는 시트는 조금만, 한 칸씩 가는 시트는 한 칸만 간다.
+                // 명령 응답이 늦었으면 그동안 이미 움직였으므로 흐른 시간도 민 시간으로 친다
                 var heldMs = 0L
-                while (heldMs < SEAT_NUDGE_MS) {
+                while (max(heldMs, clockMs() - pushedAt) < SEAT_NUDGE_MS) {
                     delay(SEAT_NUDGE_POLL_MS)
                     heldMs += SEAT_NUDGE_POLL_MS
-                    val now = attempt { port.readSeatHeight(zone) } ?: break
+                    val now = attempt { port.readSeatPosition(zone, axis) } ?: break
                     if (now != position) break
                 }
-                spentMs += heldMs
+                spentMs += max(heldMs, clockMs() - pushedAt)
             } finally {
-                attempt { port.moveSeatHeight(zone, SeatMove.STOP) }
+                attempt { port.moveSeat(zone, axis, SeatMove.STOP) }
             }
-            position = settledHeight(zone) ?: return position to spentMs
+            position = settledPosition(zone, axis) ?: return position to spentMs
         }
         return position to spentMs
     }
@@ -532,9 +587,15 @@ class SafetyGuard(
         elapsedMs > 0 && travel * SEAT_NUDGE_MS >= elapsedMs
 
     /** STOP이 늦게 닿아 조금 더 움직일 수 있으므로, 잠시 기다렸다가 멈춘 위치를 읽는다 */
-    private suspend fun settledHeight(zone: ZoneId): Int? {
+    private suspend fun settledPosition(zone: ZoneId, axis: SeatAxis): Int? {
         delay(SEAT_SETTLE_MS)
-        return attempt { port.readSeatHeight(zone) }
+        return attempt { port.readSeatPosition(zone, axis) }
+    }
+
+    /** 복원 실패 목록에 쓰는 이름 (`seatHeight[4]`, `seatTilt[4]`) */
+    private fun SeatAxis.callName() = when (this) {
+        SeatAxis.HEIGHT -> "seatHeight"
+        SeatAxis.TILT -> "seatTilt"
     }
 
     private fun record(transform: (SafetyMonitor) -> SafetyMonitor) = _monitor.update(transform)

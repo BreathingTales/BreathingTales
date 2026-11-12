@@ -7,12 +7,17 @@ import ai.pleos.playground.vehicle.listener.SeatHeightPositionListener
 import ai.pleos.playground.vehicle.listener.SeatTiltPositionListener
 import android.content.Context
 import android.os.SystemClock
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONObject
 
 /**
  * 시트 높이·기울기 이동 확인 (10, 기획서 5장 7번). SDK 시트 이동은 위치 지정이 아니라
@@ -105,6 +110,120 @@ class SeatMoveProbe(context: Context, private val log: ProbeLog, private val sco
         }
     }
 
+    /**
+     * 흔들림 연출 후보 확인 (`--ez seatSway true`). 조수석(ROW_1_RIGHT)에서
+     * 1. `moveSeatTilt`·`moveSeatBackrestAngle`이 Virtual Console의 어느 축(tilt / recline)을 어느 방향으로 움직이는지
+     * 2. 높이와 기울기(또는 등받이)를 동시에 움직이면 둘 다 움직이는지
+     * 를 본다. SDK 위치는 에뮬레이터에서 늘 0이라 위치는 Virtual Console(`seat.positions`)에서 읽는다.
+     * 끝나면 축마다 시작 위치로 되돌린다.
+     */
+    fun runSwayCheck() = scope.launch {
+        delay(1_500)
+        log.add(S, "=== 흔들림 확인 시작 ===")
+        await("기울기 이동 영역") { ok, fail -> seat.checkMoveSeatTiltCapabilities({ c, l -> ok("${c.accessType}" to l) }, fail) }
+        await("기울기 위치 범위") { ok, fail -> seat.checkSeatTiltPositionCapabilities({ c, m -> ok("${c.accessType} ${m.describe()}") }, fail) }
+        await("등받이 이동 영역") { ok, fail -> seat.checkMoveSeatBackrestAngleCapabilities({ c, l -> ok("${c.accessType}" to l) }, fail) }
+        await("등받이 위치 범위") { ok, fail -> seat.checkSeatBackrestAnglePositionCapabilities({ c, m -> ok("${c.accessType} ${m.describe()}") }, fail) }
+        val areas = await<List<SeatArea>>("높이 이동 영역") { ok, fail -> seat.checkMoveSeatHeightCapabilities({ _, l -> ok(l) }, fail) }
+        val area = areas?.firstOrNull { it.label() == "ROW_1_RIGHT" }
+        if (area == null) {
+            log.add(S, "ROW_1_RIGHT 없음 → 건너뜀")
+            return@launch
+        }
+        val start = consoleSeat() ?: run {
+            log.add(S, "Virtual Console 위치를 읽지 못함 (adb forward·AVD Enabled 확인) → 건너뜀")
+            return@launch
+        }
+        log.add(S, "시작 위치 $start")
+        val moves: Map<String, suspend (MoveControl) -> Unit> = mapOf(
+            "height" to { c -> moveHeight(area, c) },
+            "tilt" to { c -> moveTilt(area, c) },
+            "backrest" to { c -> moveBackrest(area, c) },
+        )
+        val stopAll = suspend { moves.values.forEach { it(MoveControl.STOP) } }
+        try {
+            // 1. 하나씩: 어느 축이 어느 방향으로 움직이는지
+            for (name in listOf("tilt", "backrest")) {
+                for (dir in listOf(MoveControl.FORWARD, MoveControl.BACKWARD)) {
+                    val before = consoleSeat()
+                    moves.getValue(name)(dir)
+                    delay(SWAY_PULSE_MS)
+                    moves.getValue(name)(MoveControl.STOP)
+                    delay(300)
+                    log.add(S, "$name $dir ${SWAY_PULSE_MS}ms: $before → ${consoleSeat()}")
+                }
+            }
+            // 2. 동시에: 높이와 함께
+            for (partner in listOf("tilt", "backrest")) {
+                for (dir in listOf(MoveControl.FORWARD, MoveControl.BACKWARD)) {
+                    val before = consoleSeat()
+                    val t0 = SystemClock.elapsedRealtime()
+                    moves.getValue("height")(dir)
+                    val t1 = SystemClock.elapsedRealtime()
+                    moves.getValue(partner)(dir)
+                    val t2 = SystemClock.elapsedRealtime()
+                    delay(SWAY_PULSE_MS)
+                    val mid = consoleSeat()
+                    stopAll()
+                    delay(300)
+                    log.add(S, "height+$partner $dir ${SWAY_PULSE_MS}ms (명령 응답 ${t1 - t0}ms·${t2 - t1}ms): $before → 중간 $mid → 멈춘 뒤 ${consoleSeat()}")
+                }
+            }
+        } finally {
+            stopAll()
+            restoreConsole(start, moves)
+            log.add(S, "=== 흔들림 확인 끝 (시작 $start → 최종 ${consoleSeat()}) ===")
+        }
+    }
+
+    /** Virtual Console 기준으로 축마다 시작 위치까지 되돌린다. 축마다 최대 3초 */
+    private suspend fun restoreConsole(start: SwayPos, moves: Map<String, suspend (MoveControl) -> Unit>) {
+        for (name in listOf("height", "tilt", "backrest")) {
+            val target = start[name]
+            val now = consoleSeat()?.get(name) ?: continue
+            if (now == target) continue
+            val dir = if (now > target) MoveControl.BACKWARD else MoveControl.FORWARD
+            moves.getValue(name)(dir)
+            withTimeoutOrNull(3_000) {
+                while (true) {
+                    val pos = consoleSeat()?.get(name) ?: break
+                    if ((dir == MoveControl.BACKWARD && pos <= target) || (dir == MoveControl.FORWARD && pos >= target)) break
+                    delay(50)
+                }
+            }
+            moves.getValue(name)(MoveControl.STOP)
+        }
+    }
+
+    private data class SwayPos(val height: Int, val tilt: Int, val recline: Int) {
+        operator fun get(name: String) = when (name) {
+            "height" -> height
+            "tilt" -> tilt
+            else -> recline
+        }
+
+        override fun toString() = "(높이 $height, tilt $tilt, recline $recline)"
+    }
+
+    /** Virtual Console의 조수석 위치. 읽지 못하면 null */
+    private suspend fun consoleSeat(): SwayPos? = withContext(Dispatchers.IO) {
+        try {
+            val connection = URL("http://127.0.0.1:8088/vehicle/state").openConnection() as HttpURLConnection
+            connection.connectTimeout = 1_000
+            connection.readTimeout = 1_000
+            try {
+                val positions = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                    .getJSONObject("seat").getJSONObject("positions")
+                fun axis(key: String) = positions.getJSONObject(key).getInt("passenger")
+                SwayPos(axis("height"), axis("tilt"), axis("recline"))
+            } finally {
+                connection.disconnect()
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     /** FORWARD로 1초 움직이고 STOP → 멈춘 뒤에도 움직이는지 → 반대 방향으로 시작 위치까지 되돌림 (최대 3초) */
     private suspend fun pulseAndReturn(
         name: String,
@@ -162,6 +281,10 @@ class SeatMoveProbe(context: Context, private val log: ProbeLog, private val sco
         await("기울기 $control") { ok, fail -> seat.moveSeatTilt(area, control, { _, c -> ok(c) }, fail) }
     }
 
+    private suspend fun moveBackrest(area: SeatArea, control: MoveControl) {
+        await("등받이 $control", quiet = true) { ok, fail -> seat.moveSeatBackrestAngle(area, control, { _, c -> ok(c) }, fail) }
+    }
+
     private suspend fun readHeight(area: SeatArea): Int? =
         await("높이 위치", quiet = true) { ok, fail -> seat.getCurrentSeatHeightPosition(area, { ok(it) }, fail) }
 
@@ -216,6 +339,7 @@ class SeatMoveProbe(context: Context, private val log: ProbeLog, private val sco
 
     private companion object {
         const val S = "SeatMove"
+        const val SWAY_PULSE_MS = 500L
     }
 }
 

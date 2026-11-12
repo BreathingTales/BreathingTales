@@ -6,8 +6,10 @@ import com.breathingtales.domain.model.CabinSnapshot
 import com.breathingtales.domain.model.LampSwitch
 import com.breathingtales.domain.model.ZoneId
 import com.breathingtales.domain.port.CabinCapabilities
+import com.breathingtales.domain.port.SeatAxis
 import com.breathingtales.domain.port.SeatMove
 import com.breathingtales.domain.port.VehicleEffectPort
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -82,23 +84,27 @@ class FakeVehicleEffectPort @Inject constructor() : VehicleEffectPort {
     override suspend fun setReadingLight(zone: ZoneId, switch: LampSwitch) =
         change("readingLight[${zone.raw}]=$switch") { it.copy(readingLights = it.readingLights + (zone to switch)) }
 
-    // 시트 높이: 위치를 읽을 때마다 움직이는 방향으로 SEAT_STEP씩 간다 (시계 없이 결정적으로)
-    private val seatHeights = mutableMapOf(PASSENGER to 40)
-    private var seatMoving: Pair<ZoneId, SeatMove>? = null
+    // 시트 높이·기울기: 위치를 읽을 때마다 움직이는 방향으로 SEAT_STEP씩 간다 (시계 없이 결정적으로)
+    // SafetyGuard가 두 축을 동시에 움직이므로 여러 스레드에서 불릴 수 있다
+    private val seatPositions = ConcurrentHashMap(mapOf((PASSENGER to SeatAxis.HEIGHT) to 40, (PASSENGER to SeatAxis.TILT) to 20))
+    private val seatMoving = ConcurrentHashMap<Pair<ZoneId, SeatAxis>, SeatMove>()
 
-    override suspend fun readSeatHeight(zone: ZoneId): Int? {
-        val current = seatHeights[zone] ?: return null
-        val moving = seatMoving?.takeIf { it.first == zone }?.second ?: return current
+    override suspend fun readSeatPosition(zone: ZoneId, axis: SeatAxis): Int? {
+        val key = zone to axis
+        val current = seatPositions[key] ?: return null
+        val moving = seatMoving[key] ?: return current
         val next = (if (moving == SeatMove.UP) current + SEAT_STEP else current - SEAT_STEP).coerceIn(SEAT_RANGE)
-        seatHeights[zone] = next
+        seatPositions[key] = next
         return next
     }
 
     override suspend fun isSeatOccupiedAndBuckled(zone: ZoneId) = zone == PASSENGER
 
-    override suspend fun moveSeatHeight(zone: ZoneId, move: SeatMove) {
-        seatMoving = if (move == SeatMove.STOP) null else zone to move
-        _log.update { it + "seatHeight[${zone.raw}]=$move" }
+    override suspend fun moveSeat(zone: ZoneId, axis: SeatAxis, move: SeatMove) {
+        val key = zone to axis
+        if (move == SeatMove.STOP) seatMoving.remove(key) else seatMoving[key] = move
+        val name = if (axis == SeatAxis.HEIGHT) "seatHeight" else "seatTilt"
+        _log.update { it + "$name[${zone.raw}]=$move" }
     }
 
     private fun requirePower(what: String) {
@@ -125,6 +131,7 @@ class FakeVehicleEffectPort @Inject constructor() : VehicleEffectPort {
             seatHeatMaxLevel = 3,
             seatLiftZones = listOf(PASSENGER),
             seatHeightRange = 0..100,
+            seatTiltRange = 0..100,
             cabinLight = true,
             spotlightZones = listOf(REAR_LEFT, REAR_RIGHT),
         )

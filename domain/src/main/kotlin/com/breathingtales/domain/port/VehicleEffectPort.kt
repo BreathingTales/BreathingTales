@@ -43,22 +43,32 @@ interface VehicleEffectPort {
     suspend fun setReadingLight(zone: ZoneId, switch: LampSwitch)
 
     /**
-     * 시트 높이 위치 ([CabinCapabilities.seatHeightRange] 안의 값). 읽지 못하면 null.
+     * 시트 위치 ([CabinCapabilities.seatHeightRange]·[CabinCapabilities.seatTiltRange] 안의 값). 읽지 못하면 null.
      * 믿을 수 없는 값(에뮬레이터 SDK는 실제 위치와 무관하게 늘 0)도 null로 돌려준다. 0은 진짜 맨 아래일 때만
      */
-    suspend fun readSeatHeight(zone: ZoneId): Int?
+    suspend fun readSeatPosition(zone: ZoneId, axis: SeatAxis): Int?
 
     /** 그 좌석에 사람이 앉아 있고 안전벨트를 맸는지. 하나라도 읽지 못하면 false */
     suspend fun isSeatOccupiedAndBuckled(zone: ZoneId): Boolean
 
     /**
-     * 시트 높이 이동. 위치를 정하는 API가 아니라 [SeatMove.STOP]을 보낼 때까지 계속 움직인다 (02 문서 4장).
+     * 시트 이동. 위치를 정하는 API가 아니라 [SeatMove.STOP]을 보낼 때까지 계속 움직인다 (02 문서 4장).
      * 멈추는 일은 SafetyGuard가 위치를 읽으며 한다
      */
-    suspend fun moveSeatHeight(zone: ZoneId, move: SeatMove)
+    suspend fun moveSeat(zone: ZoneId, axis: SeatAxis, move: SeatMove)
 }
 
+/** [SeatMove.UP]은 위치 값이 커지는 방향 */
 enum class SeatMove { UP, DOWN, STOP }
+
+/** 들썩임에 쓰는 시트 축. 등받이는 뒷좌석 아이 쪽으로 움직이므로 일부러 두지 않는다 (기획서 5장 7번) */
+enum class SeatAxis {
+    /** 방석 높이. 값이 클수록 높다 */
+    HEIGHT,
+
+    /** 방석 앞쪽 각도. 값이 클수록 앞쪽이 들려 몸이 뒤로 기운다 (AAOS `SEAT_TILT_POS`) */
+    TILT,
+}
 
 /** 어댑터가 `check…Capabilities`로 받은 차량 지원 범위 */
 data class CabinCapabilities(
@@ -79,6 +89,8 @@ data class CabinCapabilities(
     val seatLiftZones: List<ZoneId> = emptyList(),
     /** 시트 높이 위치 범위. null이면 시트 연출 없음 */
     val seatHeightRange: IntRange? = null,
+    /** [seatLiftZones] 좌석의 방석 기울기 위치 범위. null이면 기울기 없이 높이만 움직인다 */
+    val seatTiltRange: IntRange? = null,
     /** 실내등을 켜고 끌 수 있는지 */
     val cabinLight: Boolean = false,
     /** 「햇살 한 줄기」에 쓸 뒷좌석 독서등 영역. 비어 있으면 독서등 연출 없음 */

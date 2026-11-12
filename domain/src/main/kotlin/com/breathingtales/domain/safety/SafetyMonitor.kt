@@ -37,7 +37,10 @@ data class SafetyMonitor(
 
     data class AmbientControl(val colorRgb: Int, val requestedBrightness: Float, val brightness: Int?)
 
-    /** 시트 들썩임 결과와 높이 위치 (시작 → 가장 높이 → 끝), 되돌리기까지 마친 횟수 / 요청 횟수. 읽지 못한 값은 null */
+    /**
+     * 시트 들썩임 결과와 높이 위치 (시작 → 가장 높이 → 끝), 되돌리기까지 마친 횟수 / 요청 횟수. 읽지 못한 값은 null.
+     * [tilt]는 함께 움직인 방석 기울기 위치. 기울기 없이 높이만 움직였으면 null
+     */
     data class SeatLiftControl(
         val outcome: SeatLiftOutcome,
         val start: Int? = null,
@@ -45,7 +48,11 @@ data class SafetyMonitor(
         val end: Int? = null,
         val done: Int = 0,
         val repeat: Int = 0,
+        val tilt: SeatPositions? = null,
     )
+
+    /** 한 축의 시트 위치 (시작 → 가장 높이 → 끝) */
+    data class SeatPositions(val start: Int, val peak: Int?, val end: Int?)
 }
 
 /** 시트 들썩임 결과 (기획서 5장 7번). 건너뛴 이유를 그대로 보여 준다 */

@@ -8,10 +8,12 @@ import com.breathingtales.domain.model.LampSwitch
 import com.breathingtales.domain.model.VehicleState
 import com.breathingtales.domain.model.ZoneId
 import com.breathingtales.domain.port.CabinCapabilities
+import com.breathingtales.domain.port.SeatAxis
 import com.breathingtales.domain.port.SeatMove
 import com.breathingtales.domain.port.VehicleEffectPort
 import com.breathingtales.domain.repository.VehicleStateRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.yield
 
 val DRIVER = ZoneId(1)
@@ -77,6 +79,10 @@ class RecordingPort(
     // 시트 높이: [now] 시계로 [seatSpeedPerSec]씩 움직이는 시트. [seatUnreadable]이면 위치를 읽지 못한다(에뮬레이터 SDK의 늘 0을 어댑터가 null로 바꾼 경우)
     var now: () -> Long = { 0L }
     val seatHeights = mutableMapOf<ZoneId, Int>()
+    /** 방석 기울기 위치. 높이와 같은 속도·지연으로 움직인다 */
+    val seatTilts = mutableMapOf<ZoneId, Int>()
+    /** 기울기만 위치를 읽지 못한다 */
+    var seatTiltUnreadable = false
     var seatSpeedPerSec = 50
     var seatUnreadable = false
     val occupiedAndBuckled = mutableSetOf<ZoneId>()
@@ -84,22 +90,27 @@ class RecordingPort(
     var seatTickMs = 0L
     /** 명령(UP·DOWN·STOP)이 시트에 닿기까지 걸리는 시간. STOP을 보낸 뒤에도 그동안은 계속 움직인다 */
     var seatCommandLagMs = 0L
+    /** 축마다 첫 명령은 시트에 닿고(움직이기 시작하고) 이만큼 지나서야 응답이 온다 (에뮬레이터 첫 명령 약 0.9초, 2026-11-12) */
+    var seatFirstReplyLagMs = 0L
+    /** 시트 명령을 보낸 시각과 명령 (응답을 기다리기 전) */
+    val seatCommandTimes = mutableListOf<Pair<Long, String>>()
+    private val seatReplied = mutableSetOf<Pair<ZoneId, SeatAxis>>()
     /** STOP만 이만큼 더 늦게 닿는다 (명령마다 닿는 시간이 달라 실제로 움직이는 시간이 보낸 간격보다 길어지는 경우) */
     var seatStopExtraLagMs = 0L
 
-    /** 영역별 (시작 위치, 시트에 닿는 시각 순 명령). 첫 명령 때 그때 위치를 시작 위치로 잡는다 */
-    private val seatTimelines = mutableMapOf<ZoneId, Pair<Int, MutableList<Pair<Long, SeatMove>>>>()
+    /** 영역·축별 (시작 위치, 시트에 닿는 시각 순 명령). 첫 명령 때 그때 위치를 시작 위치로 잡는다 */
+    private val seatTimelines = mutableMapOf<Pair<ZoneId, SeatAxis>, Pair<Int, MutableList<Pair<Long, SeatMove>>>>()
 
-    private fun position(zone: ZoneId): Int = positionAt(zone, now())
+    private fun stored(axis: SeatAxis) = if (axis == SeatAxis.HEIGHT) seatHeights else seatTilts
 
     /** 0부터 [until]까지 1ms마다 본 실제 시트 위치의 최저~최고. 읽기 사이에 지나친 것도 잡는다 */
-    fun seatExtremes(zone: ZoneId, until: Long): IntRange {
-        val positions = (0..until).map { positionAt(zone, it) }
+    fun seatExtremes(zone: ZoneId, until: Long, axis: SeatAxis = SeatAxis.HEIGHT): IntRange {
+        val positions = (0..until).map { positionAt(zone, axis, it) }
         return positions.min()..positions.max()
     }
 
-    private fun positionAt(zone: ZoneId, t: Long): Int {
-        val (base, commands) = seatTimelines[zone] ?: return seatHeights[zone] ?: 0
+    private fun positionAt(zone: ZoneId, axis: SeatAxis, t: Long): Int {
+        val (base, commands) = seatTimelines[zone to axis] ?: return stored(axis)[zone] ?: 0
         var position = base
         var move = SeatMove.STOP
         var since = 0L
@@ -122,16 +133,22 @@ class RecordingPort(
         return (if (move == SeatMove.UP) from + delta else from - delta).coerceIn(0, 100)
     }
 
-    override suspend fun readSeatHeight(zone: ZoneId): Int? =
-        if (seatUnreadable) null else position(zone).also { seatHeights[zone] = it }
+    override suspend fun readSeatPosition(zone: ZoneId, axis: SeatAxis): Int? {
+        if (seatUnreadable || (axis == SeatAxis.TILT && seatTiltUnreadable)) return null
+        if (axis == SeatAxis.TILT && zone !in seatTilts && (zone to axis) !in seatTimelines) return null
+        return positionAt(zone, axis, now()).also { stored(axis)[zone] = it }
+    }
 
     override suspend fun isSeatOccupiedAndBuckled(zone: ZoneId) = zone in occupiedAndBuckled
 
-    override suspend fun moveSeatHeight(zone: ZoneId, move: SeatMove) {
-        record("seatHeight[${zone.raw}]=$move")
-        val timeline = seatTimelines.getOrPut(zone) { (seatHeights[zone] ?: 0) to mutableListOf() }
+    override suspend fun moveSeat(zone: ZoneId, axis: SeatAxis, move: SeatMove) {
+        val call = "${if (axis == SeatAxis.HEIGHT) "seatHeight" else "seatTilt"}[${zone.raw}]=$move"
+        seatCommandTimes += now() to call
+        record(call)
+        val timeline = seatTimelines.getOrPut(zone to axis) { (stored(axis)[zone] ?: 0) to mutableListOf() }
         val extra = if (move == SeatMove.STOP) seatStopExtraLagMs else 0L
         timeline.second += (now() + seatCommandLagMs + extra) to move
         timeline.second.sortBy { it.first }
+        if (seatReplied.add(zone to axis) && seatFirstReplyLagMs > 0) delay(seatFirstReplyLagMs)
     }
 }
