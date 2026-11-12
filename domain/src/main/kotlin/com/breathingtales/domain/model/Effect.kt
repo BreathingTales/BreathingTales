@@ -66,7 +66,7 @@ sealed interface Effect {
     data class CabinLight(val on: Boolean) : Effect
 
     /** 뒷좌석 독서등. 「구름 사이로 내려오는 햇살 한 줄기」 */
-    data class Spotlight(val on: Boolean) : Effect
+    data class ReadingLight(val on: Boolean) : Effect
 
     /** 효과음·배경음 */
     data class Sound(

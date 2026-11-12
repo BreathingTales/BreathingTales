@@ -53,7 +53,7 @@ class PleosVehicleAdapterTest {
         assertEquals(3, caps.seatHeatMaxLevel)
         // 10 대본 재작성: 실내등(켜기·끄기), 뒷좌석 독서등 2곳
         assertTrue(caps.cabinLight)
-        assertEquals(2, caps.spotlightZones.size)
+        assertEquals(2, caps.readingLightZones.size)
     }
 
     /**
@@ -104,7 +104,7 @@ class PleosVehicleAdapterTest {
         var restored: List<String>? = null
         try {
             assertTrue(guard.apply(Effect.CabinLight(cabinTarget)))
-            assertTrue(guard.apply(Effect.Spotlight(true)))
+            assertTrue(guard.apply(Effect.ReadingLight(true)))
             eventually("조명 반영") {
                 val now = adapter.readSnapshot()
                 now.cabinLight == (if (cabinTarget) LampSwitch.ON else LampSwitch.OFF) &&

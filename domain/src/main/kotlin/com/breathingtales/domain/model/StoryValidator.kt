@@ -114,7 +114,7 @@ object StoryValidator {
                 range("value", effect.delta, -Effect.FanLevel.MAX, Effect.FanLevel.MAX)
                 range("max", effect.max, 0, Effect.FanLevel.MAX)
             }
-            is Effect.FanDirection, is Effect.CabinLight, is Effect.Spotlight -> Unit
+            is Effect.FanDirection, is Effect.CabinLight, is Effect.ReadingLight -> Unit
             is Effect.TemperatureDelta ->
                 range("value", effect.deltaC, -Effect.TemperatureDelta.MAX_ABS, Effect.TemperatureDelta.MAX_ABS)
             is Effect.SeatHeat -> range("value", effect.level, 0, Effect.SeatHeat.MAX)

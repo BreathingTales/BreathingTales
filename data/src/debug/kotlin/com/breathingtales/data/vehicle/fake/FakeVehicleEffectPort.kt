@@ -133,7 +133,7 @@ class FakeVehicleEffectPort @Inject constructor() : VehicleEffectPort {
             seatHeightRange = 0..100,
             seatTiltRange = 0..100,
             cabinLight = true,
-            spotlightZones = listOf(REAR_LEFT, REAR_RIGHT),
+            readingLightZones = listOf(REAR_LEFT, REAR_RIGHT),
         )
 
         private val SEAT_RANGE = 0..100

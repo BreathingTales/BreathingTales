@@ -206,7 +206,7 @@ class SafetyGuardTest {
         assertEquals(emptyList<String>(), guard.monitor.value.restoreFailures)
     }
 
-    private val lightCapabilities = EMULATOR_CAPABILITIES.copy(cabinLight = true, spotlightZones = listOf(REAR_LEFT, REAR_RIGHT))
+    private val lightCapabilities = EMULATOR_CAPABILITIES.copy(cabinLight = true, readingLightZones = listOf(REAR_LEFT, REAR_RIGHT))
 
     @Test
     fun `실내등과 독서등은 바꾼 것만 시작 상태로 되돌린다`() = runTest {
@@ -216,7 +216,7 @@ class SafetyGuardTest {
             readingLights = mapOf(REAR_LEFT to LampSwitch.OFF, REAR_RIGHT to LampSwitch.ON),
         )
         guard.begin(Intensity.HIGH)
-        assertTrue(guard.apply(Effect.Spotlight(true)))
+        assertTrue(guard.apply(Effect.ReadingLight(true)))
         port.calls.clear()
         guard.restore()
         val lampCalls = port.calls.filter { it.startsWith("cabinLight") || it.startsWith("readingLight") }
@@ -240,7 +240,7 @@ class SafetyGuardTest {
         port.snapshot = poweredOn.copy(cabinLight = null, readingLights = mapOf(REAR_LEFT to LampSwitch.OFF))
         guard.begin(Intensity.HIGH)
         assertFalse(guard.apply(Effect.CabinLight(false)))
-        assertTrue(guard.apply(Effect.Spotlight(true)))
+        assertTrue(guard.apply(Effect.ReadingLight(true)))
         assertEquals(listOf("readingLight[16]=ON"), port.calls.filter { it.startsWith("cabinLight") || it.startsWith("readingLight") })
     }
 
@@ -249,8 +249,8 @@ class SafetyGuardTest {
         port.snapshot = poweredOn.copy(cabinLight = LampSwitch.OFF, readingLights = mapOf(REAR_LEFT to LampSwitch.OFF))
         guard.begin(Intensity.HIGH)
         assertFalse(guard.apply(Effect.CabinLight(false)))
-        assertFalse(guard.apply(Effect.Spotlight(true)))
-        assertEquals(SafetyMonitor.LampControl(requestedOn = true, sent = false), guard.monitor.value.spotlight)
+        assertFalse(guard.apply(Effect.ReadingLight(true)))
+        assertEquals(SafetyMonitor.LampControl(requestedOn = true, sent = false), guard.monitor.value.readingLight)
         guard.restore()
         assertTrue(port.calls.none { it.startsWith("cabinLight") || it.startsWith("readingLight") })
     }
@@ -263,7 +263,7 @@ class SafetyGuardTest {
         port.snapshot = poweredOn.copy(cabinLight = LampSwitch.OFF, readingLights = mapOf(REAR_LEFT to LampSwitch.OFF))
         guard.begin(Intensity.HIGH)
         guard.apply(Effect.CabinLight(true))
-        guard.apply(Effect.Spotlight(true))
+        guard.apply(Effect.ReadingLight(true))
         states.state.value = PARKED.copy(gear = Gear.DRIVE)
         port.failing += listOf("cabinLight", "readingLight")
         return guard.restore()

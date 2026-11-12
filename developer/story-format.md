@@ -106,7 +106,7 @@ app/src/main/assets/stories/
 | `ambient` | `color`, `brightness`, `fadeSec` | `#RRGGBB`, 0~1, 0 이상 | 무드등 색과 밝기. `fadeSec` 동안 서서히 바꿈 |
 | `ambientBrightnessStep` | `value`, `max`, `fadeSec` | -1~1, 0~1 (기본 1), 0 이상 (기본 0) | 지금 밝기에서 더하거나 뺌. 앞에서 `ambient`로 색을 정한 뒤에만 동작 |
 | `cabinLight` | `value` | `on`, `off` | 실내등. 시작에 꺼서 극장 불이 꺼지는 느낌을 줌 |
-| `spotlight` | `value` | `on`, `off` | 뒷좌석 독서등 |
+| `readingLight` | `value` | `on`, `off` | 뒷좌석 독서등 |
 | `sound` | `audio`, `loop`, `volume` | 파일, 기본 `false`, 0~1 | 효과음·배경음 |
 | `restore` | `fadeSec` | 0 이상 | 실내를 시작 전 상태로 되돌림. `fadeSec` 동안 무드등을 먼저 서서히 돌림 |
 

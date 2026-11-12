@@ -642,7 +642,7 @@
         },
         {
           "at": 9.9,
-          "type": "spotlight",
+          "type": "readingLight",
           "value": "on"
         }
       ],
@@ -838,7 +838,7 @@
         },
         {
           "at": 0.0,
-          "type": "spotlight",
+          "type": "readingLight",
           "value": "off"
         },
         {

@@ -117,7 +117,7 @@ internal object StoryParser {
         is EffectDto.SeatHeat -> Effect.SeatHeat(value)
         is EffectDto.SeatLift -> Effect.SeatLift(durationSec, repeat)
         is EffectDto.CabinLight -> Effect.CabinLight(value == OnOffDto.ON)
-        is EffectDto.Spotlight -> Effect.Spotlight(value == OnOffDto.ON)
+        is EffectDto.ReadingLight -> Effect.ReadingLight(value == OnOffDto.ON)
         is EffectDto.Sound -> Effect.Sound(audio, loop, volume)
         is EffectDto.Restore -> Effect.Restore(fadeSec)
     }

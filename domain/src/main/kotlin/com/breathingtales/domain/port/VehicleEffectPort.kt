@@ -94,5 +94,5 @@ data class CabinCapabilities(
     /** 실내등을 켜고 끌 수 있는지 */
     val cabinLight: Boolean = false,
     /** 「햇살 한 줄기」에 쓸 뒷좌석 독서등 영역. 비어 있으면 독서등 연출 없음 */
-    val spotlightZones: List<ZoneId> = emptyList(),
+    val readingLightZones: List<ZoneId> = emptyList(),
 )

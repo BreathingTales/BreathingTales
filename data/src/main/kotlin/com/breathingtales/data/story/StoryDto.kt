@@ -152,8 +152,8 @@ internal sealed class EffectDto {
     ) : EffectDto()
 
     @Serializable
-    @SerialName("spotlight")
-    data class Spotlight(
+    @SerialName("readingLight")
+    data class ReadingLight(
         val value: OnOffDto,
         override val at: Double = 0.0,
     ) : EffectDto()

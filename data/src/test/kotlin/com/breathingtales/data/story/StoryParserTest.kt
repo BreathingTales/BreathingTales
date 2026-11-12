@@ -58,12 +58,12 @@ class StoryParserTest {
     fun `실내등과 독서등 효과는 on·off 값으로 읽는다`() {
         val text = sample.replace(
             "{ \"at\": 0.0, \"type\": \"fanDirection\", \"value\": \"face\" }",
-            "{ \"type\": \"cabinLight\", \"value\": \"off\" }, { \"at\": 1.0, \"type\": \"spotlight\", \"value\": \"on\" }",
+            "{ \"type\": \"cabinLight\", \"value\": \"off\" }, { \"at\": 1.0, \"type\": \"readingLight\", \"value\": \"on\" }",
         )
         assertTrue("샘플 문자열이 바뀌어 치환이 안 됨", text != sample)
         val effects = StoryParser.parse("sun-and-wind", text, allFilesExist).scenes[1].effects
         assertTrue(TimedEffect(0.0, Effect.CabinLight(false)) in effects)
-        assertTrue(TimedEffect(1.0, Effect.Spotlight(true)) in effects)
+        assertTrue(TimedEffect(1.0, Effect.ReadingLight(true)) in effects)
     }
 
     @Test

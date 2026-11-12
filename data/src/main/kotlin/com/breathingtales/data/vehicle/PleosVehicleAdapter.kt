@@ -381,7 +381,7 @@ class PleosVehicleAdapter @Inject constructor(
             seatHeightRange = heightRange,
             seatTiltRange = tiltRange,
             cabinLight = cabinLight,
-            spotlightZones = readingLights.keys.toList(),
+            readingLightZones = readingLights.keys.toList(),
         )
         Log.i(TAG, "지원 범위: $capabilities / 전원 영역 ${power.size}개")
         return Areas(

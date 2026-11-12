@@ -19,7 +19,7 @@ data class SafetyMonitor(
     val ambient: AmbientControl? = null,
     val seatLift: SeatLiftControl? = null,
     val cabinLight: LampControl? = null,
-    val spotlight: LampControl? = null,
+    val readingLight: LampControl? = null,
     /** 마지막 복원에서 되돌리지 못한 항목. 복원 전이면 null */
     val restoreFailures: List<String>? = null,
 ) {

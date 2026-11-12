@@ -198,13 +198,13 @@ class SafetyGuard(
                 record { it.copy(cabinLight = SafetyMonitor.LampControl(effect.on, ok)) }
                 if (!ok) return false
             }
-            is Effect.Spotlight -> {
-                val zones = session.capabilities.spotlightZones.filter { it in session.snapshot.readingLights }
+            is Effect.ReadingLight -> {
+                val zones = session.capabilities.readingLightZones.filter { it in session.snapshot.readingLights }
                 zones.forEach { zone ->
                     port.setReadingLight(zone, if (effect.on) LampSwitch.ON else LampSwitch.OFF)
                     session.readingLightsTouched += zone
                 }
-                record { it.copy(spotlight = SafetyMonitor.LampControl(effect.on, zones.isNotEmpty())) }
+                record { it.copy(readingLight = SafetyMonitor.LampControl(effect.on, zones.isNotEmpty())) }
                 if (zones.isEmpty()) return false
             }
             is Effect.SeatLift -> {

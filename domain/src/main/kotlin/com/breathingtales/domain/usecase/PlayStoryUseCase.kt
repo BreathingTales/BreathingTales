@@ -384,7 +384,7 @@ class PlayStoryUseCase(
                     startAmbient(next)
                 }
                 is Effect.FanDirection, is Effect.TemperatureDelta, is Effect.SeatHeat, is Effect.SeatLift,
-                is Effect.CabinLight, is Effect.Spotlight -> guard.apply(effect)
+                is Effect.CabinLight, is Effect.ReadingLight -> guard.apply(effect)
             }
         }
 
