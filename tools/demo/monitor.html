@@ -311,6 +311,15 @@ function events() {
   return ev;
 }
 
+/** 시트 그래프 세로 범위: 0~100 전체로 그리면 +10 들썩임이 잘 안 보여, 시작 값과 한도 주변만 확대한다 */
+function seatRange() {
+  const vs = samples.flatMap(s => [s.seatH, s.seatT]).concat([base.seatH, base.seatT]).filter(v => v != null);
+  const starts = [base.seatH, base.seatT].filter(v => v != null);
+  const lo = Math.max(0, Math.min(...vs, ...starts) - 4);
+  const hi = Math.min(100, Math.max(...vs, ...starts.map(v => v + SEAT_LIFT_MAX)) + 4);
+  return [lo, Math.max(hi, lo + 10)];
+}
+
 function render(cur) {
   $('conn').textContent = replay ? '기록 보기 (실시간 아님)' : '연결됨'; $('conn').className = 'pill ' + (replay ? 'warn' : 'ok');
   $('avd').textContent = cur.avail ? 'AVD 켜짐' : 'AVD 꺼짐'; $('avd').className = 'pill ' + (cur.avail ? 'ok' : 'bad');
@@ -355,7 +364,7 @@ function render(cur) {
       [{ get: s => s.heatRL, color: '#ff8c42' }, { get: s => s.heatRR, color: '#ffb38a' }], { range: [0, 3], limits: [SEAT_HEAT_MAX] }) +
     chart('조수석 높이 · 방석 기울기', `${cur.seatH} · ${cur.seatT ?? '-'} (한도 시작 +${SEAT_LIFT_MAX}) · ${cur.occ ? '앉음' : '비어 있음'}`,
       [{ get: s => s.seatH, color: '#7ee0ff' }, { get: s => s.seatT, color: '#a8f0c6' }],
-      { range: [0, 100], limits: [base.seatH + SEAT_LIFT_MAX, ...(base.seatT != null ? [base.seatT + SEAT_LIFT_MAX] : [])], bases: [base.seatH, ...(base.seatT != null ? [base.seatT] : [])] }) +
+      { range: seatRange(), limits: [base.seatH + SEAT_LIFT_MAX, ...(base.seatT != null ? [base.seatT + SEAT_LIFT_MAX] : [])], bases: [base.seatH, ...(base.seatT != null ? [base.seatT] : [])] }) +
     chart('기어 P·속도 0·문 닫힘 (모두 만족 = 위)', p ? '만족' : '깨짐', [{ get: s => parked(s) ? 1 : 0, color: 'var(--ok)' }], { range: [-0.2, 1.2] });
 }
 
