@@ -1,6 +1,6 @@
 package com.breathingtales.di
 
-import com.breathingtales.data.vehicle.EmulatorSeatState
+import com.breathingtales.data.vehicle.EmulatorVehicleState
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -17,5 +17,5 @@ object VehicleModule {
      */
     @Provides
     @Singleton
-    fun emulatorSeatState(): EmulatorSeatState = EmulatorSeatState { EmulatorSeatState.isEmulator }
+    fun emulatorSeatState(): EmulatorVehicleState = EmulatorVehicleState { EmulatorVehicleState.isEmulator }
 }

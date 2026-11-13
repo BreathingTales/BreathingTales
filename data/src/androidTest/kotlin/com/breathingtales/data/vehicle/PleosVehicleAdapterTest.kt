@@ -34,7 +34,7 @@ class PleosVehicleAdapterTest {
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val pleos = PleosVehicle(context)
-    private val adapter = PleosVehicleAdapter(pleos, EmulatorSeatState { false })
+    private val adapter = PleosVehicleAdapter(pleos, EmulatorVehicleState { false })
 
     /** 정차 판단은 따로 확인하고, 여기서는 제어만 본다 */
     private val parked = object : VehicleStateRepository {

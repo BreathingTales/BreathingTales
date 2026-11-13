@@ -36,7 +36,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 @Singleton
 class PleosVehicleAdapter @Inject constructor(
     pleos: PleosVehicle,
-    private val emulator: EmulatorSeatState,
+    private val emulator: EmulatorVehicleState,
 ) : VehicleEffectPort {
 
     private val vehicle = pleos.vehicle
@@ -135,10 +135,21 @@ class PleosVehicleAdapter @Inject constructor(
 
     private suspend fun readTemperatures(): Map<ZoneId, Float> =
         areas().temperatures.mapNotNull { (zone, area) ->
-            orNull("온도 읽기") {
-                pleosCall<Float?>("온도 읽기") { ok, ng -> hvac.getHvacTemperature(area, TemperatureUnit.CELSIUS, ok, ng) }
-            }?.let { zone to it }
+            (
+                orNull("온도 읽기") {
+                    pleosCall<Float?>("온도 읽기") { ok, ng -> hvac.getHvacTemperature(area, TemperatureUnit.CELSIUS, ok, ng) }
+                }
+                    // Pleos 에뮬레이터: 켠 뒤 한 번도 설정 온도를 쓰지 않으면 SDK가 읽지 못한다. Virtual Console 값으로 대신 읽는다
+                    // (실차에서는 꺼짐). 기준 온도가 없으면 온도 효과를 통째로 건너뛰기 때문이다
+                    ?: emulatorTemperature(area)
+                )?.let { zone to it }
         }.toMap()
+
+    private suspend fun emulatorTemperature(area: SeatArea): Float? {
+        if (!emulator.enabled()) return null
+        val key = EmulatorVehicleState.seatKey(area.values.map { it.name })?.takeIf { it == "driver" || it == "passenger" } ?: return null
+        return emulator.temperatureC(key)?.also { Log.i(TAG, "온도 읽기 → Virtual Console $key ${it}℃ (에뮬레이터)") }
+    }
 
     /**
      * set 응답(onComplete)은 요청을 받았다는 뜻일 뿐이라, 전원 이벤트로 실제로 바뀐 것을 확인한 뒤 돌아온다
@@ -237,10 +248,10 @@ class PleosVehicleAdapter @Inject constructor(
         }
         // Pleos 에뮬레이터: SDK는 늘 0을 돌려주므로 Virtual Console의 실제 위치로 대신 읽는다 (실차에서는 꺼짐)
         if ((sdk == null || sdk == 0) && emulator.enabled()) {
-            EmulatorSeatState.seatKey(area.values.map { it.name })?.let { key -> emulator.position(key, axis)?.let { return it } }
+            EmulatorVehicleState.seatKey(area.values.map { it.name })?.let { key -> emulator.position(key, axis)?.let { return it } }
         }
         // 에뮬레이터 SDK의 0은 실제 위치가 아니다. 읽지 못한 것으로 돌려줘 SafetyGuard가 건너뛰게 한다 (실차의 0은 진짜 맨 아래)
-        if (sdk == 0 && EmulatorSeatState.isEmulator) return null
+        if (sdk == 0 && EmulatorVehicleState.isEmulator) return null
         return sdk
     }
 
@@ -255,7 +266,7 @@ class PleosVehicleAdapter @Inject constructor(
         if (occupied == true && buckled == true) return true
         // Pleos 에뮬레이터: 안전벨트 상태가 없어(SDK는 늘 false) Virtual Console의 착석만 본다 (실차에서는 꺼짐)
         if (emulator.enabled()) {
-            return EmulatorSeatState.seatKey(area.values.map { it.name })?.let { emulator.occupied(it) } == true
+            return EmulatorVehicleState.seatKey(area.values.map { it.name })?.let { emulator.occupied(it) } == true
         }
         return false
     }

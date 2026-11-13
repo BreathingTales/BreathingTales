@@ -4,7 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.breathingtales.BuildConfig
-import com.breathingtales.data.vehicle.EmulatorSeatState
+import com.breathingtales.data.vehicle.EmulatorVehicleState
 import com.breathingtales.domain.model.Story
 import com.breathingtales.domain.model.VehicleState
 import com.breathingtales.domain.repository.SettingsRepository
@@ -53,7 +53,7 @@ class PlayViewModel @Inject constructor(
     private val engine: PlayStoryUseCase,
     private val guard: SafetyGuard,
     vehicleStates: VehicleStateRepository,
-    emulator: EmulatorSeatState,
+    emulator: EmulatorVehicleState,
 ) : ViewModel() {
 
     private val storyId: String = checkNotNull(savedStateHandle[ARG_STORY_ID])
@@ -77,7 +77,7 @@ class PlayViewModel @Inject constructor(
      * 꺼지면 차량 명령이 오류 없이 무시되므로 HUD에 바로 띄운다. 그 밖에는 null
      */
     val avd: StateFlow<AvdStatus?> =
-        if (demoHud && EmulatorSeatState.isEmulator) {
+        if (demoHud && EmulatorVehicleState.isEmulator) {
             flow {
                 while (true) {
                     emit(

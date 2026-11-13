@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Pleos 에뮬레이터에서만 쓰는 통로: 에뮬레이터 안 Virtual Console(127.0.0.1:8088)을 http로 읽는다 (EmulatorSeatState).
+    Pleos 에뮬레이터에서만 쓰는 통로: 에뮬레이터 안 Virtual Console(127.0.0.1:8088)을 http로 읽는다 (EmulatorVehicleState).
     에뮬레이터 SDK가 시트 위치·안전벨트를 읽지 못해서다. 127.0.0.1 하나만 열고, 실차에서는 이 주소로 읽지 않는다.
 -->
 <network-security-config>

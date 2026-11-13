@@ -48,7 +48,7 @@ MVP는 Pleos SDK 세 개와 AAOS 표준 API만 씁니다.
 ### 구현 규칙
 1. **영역을 하드코딩하지 않습니다.** 기능마다 영역 구성이 달라서, `check…Capabilities`로 받은 영역을 씁니다. 예를 들어 공조 전원 영역과 풍량 영역은 다릅니다.
 2. **공조 전원을 먼저 켭니다.** 전원이 꺼져 있으면 풍량·온도·풍향을 바꿀 수 없습니다(오류 코드 2, `NOT_AVAILABLE`). `set…`의 완료 콜백은 요청을 받았다는 뜻일 뿐이므로, 전원 이벤트(`registerHvacPowerState`)로 실제로 켜진 것을 확인한 뒤 다음 제어를 합니다.
-3. **전원이 꺼져 있으면 설정 온도를 읽을 수 없습니다.** 전원을 켠 직후, 아무것도 바꾸기 전에 읽어 복원 기준값으로 씁니다.
+3. **전원이 꺼져 있으면 설정 온도를 읽을 수 없습니다.** 전원을 켠 직후, 아무것도 바꾸기 전에 읽어 복원 기준값으로 씁니다. Pleos 에뮬레이터에서는 전원이 켜져 있어도 설정 온도가 `PropertyNotAvailableException`으로 계속 읽히지 않는 경우가 있었습니다 (2026-11-13, 전원을 켜고 8초 뒤에도 실패, Virtual Console에서 온도를 한 번 쓰면 풀림). 기준 온도가 없으면 온도 효과를 통째로 건너뛰므로, 에뮬레이터에서만 이때 Virtual Console(`hvac.driver.temp_c`·`hvac.passenger.temp_c`)에서 대신 읽습니다 (`EmulatorVehicleState`).
 4. **모든 호출은 비동기 콜백입니다.** 어댑터에서 `suspendCancellableCoroutine`과 `callbackFlow`로 감쌉니다(`PleosCalls.kt`).
 5. **SDK 예외는 타입으로 잡을 수 없습니다.** 배포 AAR에서 `VehicleException`이 난독화되어 있어 `Exception.message`로 구분합니다. 실패한 호출은 로그로 남깁니다.
 6. 조명 색은 ARGB로 보내고, 읽으면 알파 없이 RGB만 옵니다. 비교할 때는 `and 0xFFFFFF`를 씁니다.
@@ -90,7 +90,7 @@ MVP는 Pleos SDK 세 개와 AAOS 표준 API만 씁니다.
   ```
 - 에뮬레이터 SDK의 착석은 Virtual Console과 **반대로** 읽힙니다 (앉음 → false, 빈자리 → true). SDK는 원시값 1을 앉음으로 보는데, AAOS 표준 `VehicleSeatOccupancyState`에서 1은 VACANT, 2가 OCCUPIED라서 생기는 것으로 보입니다. 실차에서도 같다면 어른이 앉아 있어도 건너뛰는 쪽(안전한 쪽)으로 틀립니다. 시트는 착석과 벨트가 모두 true일 때만 움직이므로, 빈자리가 앉음으로 잘못 읽혀도 벨트가 풀려 있으면 움직이지 않습니다.
 - 착석·벨트 영역은 `CapabilityConfig`를 함께 받는 `checkSeatOccupancyCapabilities({ config, list }, …)`·`Safety.checkSeatBuckledCapabilities({ config, list }, …)`로 조회합니다 (목록만 받는 형태는 SDK 2.3.2에서 deprecated).
-- **에뮬레이터에서는 `EmulatorSeatState`가 Virtual Console(`127.0.0.1:8088/vehicle/state`)의 실제 위치·착석을 읽습니다** (debug·release 모두). 벨트 정보는 없어 착석으로 대신합니다. 심사가 Pleos 에뮬레이터에서 release APK로 이뤄지므로 release에서도 시트 들썩임을 확인할 수 있게 했습니다. 실차에서는 꺼져 있습니다. 이를 위해 `127.0.0.1`만 평문 http를 허용합니다(`res/xml/network_security_config.xml`).
+- **에뮬레이터에서는 `EmulatorVehicleState`가 Virtual Console(`127.0.0.1:8088/vehicle/state`)의 실제 위치·착석을 읽습니다** (debug·release 모두). 벨트 정보는 없어 착석으로 대신합니다. 심사가 Pleos 에뮬레이터에서 release APK로 이뤄지므로 release에서도 시트 들썩임을 확인할 수 있게 했습니다. 실차에서는 꺼져 있습니다. 이를 위해 `127.0.0.1`만 평문 http를 허용합니다(`res/xml/network_security_config.xml`).
 
 안전 조건은 [안전 설계](safety.md) 4장에 있습니다.
 

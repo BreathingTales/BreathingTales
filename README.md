@@ -65,7 +65,7 @@ adb shell am start --user 10 -n com.breathingtales/.MainActivity
 [`tools/demo/monitor.html`](tools/demo/monitor.html)을 브라우저로 열면, Virtual Console 값만 0.2초마다 읽어 연출이 안전 한도 안에 있었는지와 시작 전 값으로 돌아왔는지를 판정·그래프로 보여 줍니다. 판정 대상은 풍량, 온도, 열선, 시트 높이·기울기, 창문, 복원입니다. 앱과 별개로 동작하므로 release APK 그대로 쓸 수 있고, 이 페이지를 열어 두면 Virtual Console 탭을 가려도 AVD가 꺼지지 않습니다. `monitor.html` 파일 하나만 받아서 열어도 동작합니다. 저장한 기록을 다시 보는 자체 확인만 `selftest/` 폴더가 필요합니다. 쓰는 법은 [감시 페이지 안내](tools/demo/README.md)에 있습니다.
 
 ### 알아 둘 점
-- **에뮬레이터에서 시트 값은 Virtual Console에서 읽습니다.** 시트는 조수석에 어른이 앉아 벨트를 맸고 시작 위치를 읽을 수 있을 때만 움직입니다. 그런데 Pleos 에뮬레이터 SDK는 Virtual Console 값과 관계없이 시트 높이·기울기를 늘 0, 안전벨트를 늘 false로 돌려줍니다. 그래서 앱은 **에뮬레이터에서만** 위치·착석을 Virtual Console(`127.0.0.1:8088`)에서 읽고, 벨트 확인은 착석으로 대신합니다. 실차에서는 이 경로를 쓰지 않고 SDK의 착석·벨트·위치만 봅니다 ([차량 연동](developer/vehicle-integration.md) 5장).
+- **에뮬레이터에서 시트 값은 Virtual Console에서 읽습니다.** 시트는 조수석에 어른이 앉아 벨트를 맸고 시작 위치를 읽을 수 있을 때만 움직입니다. 그런데 Pleos 에뮬레이터 SDK는 Virtual Console 값과 관계없이 시트 높이·기울기를 늘 0, 안전벨트를 늘 false로 돌려줍니다. 그래서 앱은 **에뮬레이터에서만** 위치·착석을 Virtual Console(`127.0.0.1:8088`)에서 읽고, 벨트 확인은 착석으로 대신합니다. 실차에서는 이 경로를 쓰지 않고 SDK의 착석·벨트·위치만 봅니다 ([차량 연동](developer/vehicle-integration.md) 5장). 에뮬레이터 SDK가 설정 온도를 읽지 못할 때도 같은 방식으로 Virtual Console 값을 기준 온도로 써서, 온도 연출과 복원이 빠지지 않게 합니다.
 - 시연 영상의 안전 장치 표시(재생 화면 오른쪽 위 HUD)는 개발용(debug) 빌드 전용이며, release APK에는 없습니다. release에서는 위의 차량 감시 페이지로 같은 내용을 차 쪽 값으로 확인할 수 있습니다.
 - 차량 상태는 `curl http://127.0.0.1:8088/vehicle/state`로도 확인할 수 있습니다.
 

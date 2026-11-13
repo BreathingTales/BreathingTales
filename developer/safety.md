@@ -113,8 +113,9 @@
 위치를 모르면 시작 위치로 돌아왔는지 확인할 수 없으므로 움직이지 않습니다.
 
 - **실차 SDK**: 0은 맨 아래로 믿고 동작합니다.
-- **Pleos 에뮬레이터**: SDK는 실제 위치와 관계없이 위치를 늘 0, 벨트를 늘 false로 돌려줍니다. 그래서 에뮬레이터(`Build.HARDWARE` = `ranchu`·`goldfish`)에서만 높이·기울기 위치와 착석을 Virtual Console(`127.0.0.1:8088`)에서 읽고, 벨트 확인은 착석으로 대신합니다(`EmulatorSeatState`). 심사가 에뮬레이터에서 release APK로 이뤄지므로 debug·release 모두 같습니다. SDK가 0·false를 돌려줄 때만 끼어들고, Virtual Console에 닿지 못하면 SDK의 0을 "읽지 못함"으로 바꿔 건너뜁니다.
+- **Pleos 에뮬레이터**: SDK는 실제 위치와 관계없이 위치를 늘 0, 벨트를 늘 false로 돌려줍니다. 그래서 에뮬레이터(`Build.HARDWARE` = `ranchu`·`goldfish`)에서만 높이·기울기 위치와 착석을 Virtual Console(`127.0.0.1:8088`)에서 읽고, 벨트 확인은 착석으로 대신합니다(`EmulatorVehicleState`). 심사가 에뮬레이터에서 release APK로 이뤄지므로 debug·release 모두 같습니다. SDK가 0·false를 돌려줄 때만 끼어들고, Virtual Console에 닿지 못하면 SDK의 0을 "읽지 못함"으로 바꿔 건너뜁니다.
 - 실차에서는 이 경로가 꺼져 있어 SDK의 착석·벨트·위치만 봅니다.
+- 같은 방식으로, 에뮬레이터에서 SDK가 설정 온도를 읽지 못하면 Virtual Console 값을 복원 기준 온도로 씁니다 ([차량 연동](vehicle-integration.md) 3장).
 
 ## 5. 알려진 한계
 
