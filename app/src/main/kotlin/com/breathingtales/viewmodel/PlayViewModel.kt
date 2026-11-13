@@ -3,6 +3,7 @@ package com.breathingtales.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.breathingtales.BuildConfig
 import com.breathingtales.data.vehicle.EmulatorSeatState
 import com.breathingtales.domain.model.Story
 import com.breathingtales.domain.model.VehicleState
@@ -63,8 +64,8 @@ class PlayViewModel @Inject constructor(
     /** 재생 중 상태 (대사, 참여, 일시정지). [PlayScreenState.Running]일 때만 의미가 있다 */
     val playback: StateFlow<PlaybackState> = engine.state
 
-    /** 시연 HUD (11): 켜져 있을 때만 화면이 본다 */
-    val demoHud: Boolean = settings.settings.value.demoHud
+    /** 시연 HUD (11): debug 빌드에서 켜져 있을 때만 화면이 본다. release는 저장된 설정과 관계없이 늘 꺼짐 */
+    val demoHud: Boolean = BuildConfig.DEBUG && settings.settings.value.demoHud
     val safetyMonitor: StateFlow<SafetyMonitor> = guard.monitor
     val vehicleState: StateFlow<VehicleState> = vehicleStates.state
 

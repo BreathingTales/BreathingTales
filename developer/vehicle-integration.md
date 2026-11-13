@@ -42,7 +42,7 @@ MVP는 Pleos SDK 세 개와 AAOS 표준 API만 씁니다.
 | 주행 모드 자동색 | `Light.setAmbientColorAutoByDriveModeEnabled` | EV 구성 에뮬레이터에는 없음 → 건너뜀 |
 | 실내등·독서등 | `Light.setCabinLightSwitch`, `setReadingLightSwitch` | 켜기·끄기 |
 | 시트 열선 | `Seat.setHvacSeatTemperature` | 뒷좌석 0~3 |
-| 시트 높이 | 시트 높이 이동 (`MoveControl`) | 연속 이동, 아래 5장 |
+| 시트 높이·방석 기울기 | `Seat.moveSeatHeight`, `moveSeatTilt` (`MoveControl`) | 연속 이동, 0~100, 아래 5장 |
 | 창문 | **쓰지 않음** | 아이 손 끼임 위험 |
 
 ### 구현 규칙
@@ -78,15 +78,19 @@ MVP는 Pleos SDK 세 개와 AAOS 표준 API만 씁니다.
 | `BlowRule` | 마이크 음량(dBFS)이 기준 이상인 상태가 0.5초 이어지면 불기 한 번. 길게 불어도 한 번만 셉니다. 기준은 부모 설정의 민감도로 바꿉니다 |
 | `SuccessFilter` | 외침 한 번이 불기와 외치기로 두 번 세어지지 않게, 소리 덩어리마다 한 번만 셉니다 |
 
-## 5. 시트 높이
+## 5. 시트 높이·방석 기울기
 
 - SDK 시트 이동은 목표 위치를 받지 않고, 방향(위·아래)을 정하면 멈춤 명령까지 계속 움직입니다. 완료 콜백은 명령을 받았다는 뜻일 뿐입니다.
 - 앱은 50ms마다 위치를 읽다가 목표나 시간 상한에서 멈춤 명령을 보냅니다.
 - 착석은 `Seat.getCurrentSeatOccupancy`, 안전벨트는 `Seat.getCurrentSeatBeltBuckledState`로 읽습니다.
-- **에뮬레이터 SDK는 시트 위치를 늘 0으로, 안전벨트를 늘 false로 돌려줍니다.** 어댑터는 에뮬레이터(`Build.HARDWARE` = `ranchu`)의 위치 0을 "읽지 못함"으로 바꿔 시트 연출을 건너뜁니다.
+- **에뮬레이터 SDK는 시트 높이·기울기 위치를 늘 0으로, 안전벨트를 늘 false로 돌려줍니다.** Virtual Console의 위치를 바꿔도(예: 조수석 높이 40·기울기 55) `getCurrentSeatHeightPosition`·`getCurrentSeatTiltPosition`과 위치 구독은 모든 좌석에서 0입니다 (2026-11-11, 2026-11-13 확인). 이동 명령은 Virtual Console에 반영되므로 읽기만 되지 않는 것입니다. 그래서 앱은 에뮬레이터(`Build.HARDWARE` = `ranchu`·`goldfish`)에서만 시트 값을 Virtual Console에서 읽습니다 (아래). Virtual Console에 닿지 못하면 SDK의 위치 0을 "읽지 못함"으로 바꿔 시트 연출을 건너뜁니다.
+- 직접 확인하려면 debug 빌드의 확인 화면을 씁니다. 시트를 움직이지 않고 SDK 값만 읽어 logcat `BTProbe` `[SeatMove]`에 남깁니다.
+  ```
+  adb shell am start --user 10 -n com.breathingtales/com.breathingtales.probe.ProbeActivity --ez seatRead true
+  ```
 - 에뮬레이터 SDK의 착석은 Virtual Console과 **반대로** 읽힙니다 (앉음 → false, 빈자리 → true). SDK는 원시값 1을 앉음으로 보는데, AAOS 표준 `VehicleSeatOccupancyState`에서 1은 VACANT, 2가 OCCUPIED라서 생기는 것으로 보입니다. 실차에서도 같다면 어른이 앉아 있어도 건너뛰는 쪽(안전한 쪽)으로 틀립니다. 시트는 착석과 벨트가 모두 true일 때만 움직이므로, 빈자리가 앉음으로 잘못 읽혀도 벨트가 풀려 있으면 움직이지 않습니다.
 - 착석·벨트 영역은 `CapabilityConfig`를 함께 받는 `checkSeatOccupancyCapabilities({ config, list }, …)`·`Safety.checkSeatBuckledCapabilities({ config, list }, …)`로 조회합니다 (목록만 받는 형태는 SDK 2.3.2에서 deprecated).
-- debug 빌드의 시연 모드에서는 `EmulatorSeatState`가 에뮬레이터 안에서 Virtual Console(`127.0.0.1:8088/vehicle/state`)의 실제 위치·착석을 읽습니다. 벨트 정보는 없어 착석으로 대신합니다.
+- **에뮬레이터에서는 `EmulatorSeatState`가 Virtual Console(`127.0.0.1:8088/vehicle/state`)의 실제 위치·착석을 읽습니다** (debug·release 모두). 벨트 정보는 없어 착석으로 대신합니다. 심사가 Pleos 에뮬레이터에서 release APK로 이뤄지므로 release에서도 시트 들썩임을 확인할 수 있게 했습니다. 실차에서는 꺼져 있습니다. 이를 위해 `127.0.0.1`만 평문 http를 허용합니다(`res/xml/network_security_config.xml`).
 
 안전 조건은 [안전 설계](safety.md) 4장에 있습니다.
 
@@ -105,6 +109,7 @@ MVP는 Pleos SDK 세 개와 AAOS 표준 API만 씁니다.
 | `android.car.permission.CAR_POWERTRAIN` | 기어, 주차 브레이크 |
 | `android.car.permission.CAR_SPEED` | 속도 (런타임 요청) |
 | `android.permission.RECORD_AUDIO` | 숨 불기·외치기 (런타임 요청) |
+| `android.permission.INTERNET` | 에뮬레이터에서 Virtual Console의 시트 값 읽기. Pleos TTS·STT SDK도 선언함 |
 
 창문 권한은 release 빌드에 없습니다. debug 매니페스트에만 SDK 확인 화면용으로 둡니다.
 

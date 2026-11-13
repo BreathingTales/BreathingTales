@@ -15,8 +15,8 @@ android {
         applicationId = "com.breathingtales"
         minSdk = 31
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     // 릴리스 서명: 로컬 keystore.properties가 있을 때만 (git에 없음). 없으면 서명 안 된 APK를 만든다

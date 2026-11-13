@@ -10,11 +10,12 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 /**
- * 시연 모드 전용 (11, debug 빌드에서만 켜짐): Pleos 에뮬레이터는 SDK로 시트 높이·기울기를 늘 0으로, 안전벨트를 늘 false로 읽는다
- * (02 문서 4장). 에뮬레이터 안에서 닿는 Virtual Console 서버(`127.0.0.1:8088/vehicle/state`)의 실제 값으로 대신 읽는다.
+ * Pleos 에뮬레이터 전용: 에뮬레이터는 SDK로 시트 높이·기울기를 늘 0으로, 안전벨트를 늘 false로, 착석을 반대로 읽는다
+ * (2026-11-11·13 확인). 에뮬레이터 안에서 닿는 Virtual Console 서버(`127.0.0.1:8088/vehicle/state`)의 실제 값으로 대신 읽는다.
  *
- * [enabled]가 false면 아무것도 읽지 않는다. 릴리스 빌드에는 INTERNET 권한이 없어 켜져 있어도 읽기가 실패한다.
- * 실차에서는 쓰지 않는다: SDK 값이 그대로 쓰이고, 이 클래스는 SDK가 0·false를 돌려줄 때만 끼어든다.
+ * [enabled]가 false면 아무것도 읽지 않는다. `VehicleModule`이 [isEmulator]일 때만 켠다 (debug·release 모두).
+ * 심사가 Pleos 에뮬레이터에서 release APK로 이뤄지므로 release에서도 시트 들썩임을 확인할 수 있게 하기 위해서다.
+ * 실차에서는 쓰지 않는다: [isEmulator]가 false라 SDK 값만 쓰이고, 에뮬레이터에서도 SDK가 0·false를 돌려줄 때만 끼어든다.
  */
 class EmulatorSeatState(val enabled: () -> Boolean) {
 

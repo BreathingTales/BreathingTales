@@ -235,7 +235,7 @@ class PleosVehicleAdapter @Inject constructor(
                 }
             }
         }
-        // 시연 모드(debug): 에뮬레이터 SDK는 늘 0을 돌려주므로 Virtual Console의 실제 위치로 대신 읽는다
+        // Pleos 에뮬레이터: SDK는 늘 0을 돌려주므로 Virtual Console의 실제 위치로 대신 읽는다 (실차에서는 꺼짐)
         if ((sdk == null || sdk == 0) && emulator.enabled()) {
             EmulatorSeatState.seatKey(area.values.map { it.name })?.let { key -> emulator.position(key, axis)?.let { return it } }
         }
@@ -253,7 +253,7 @@ class PleosVehicleAdapter @Inject constructor(
             pleosCall<Boolean?>("안전벨트 읽기") { ok, ng -> seat.getCurrentSeatBeltBuckledState(area, ok, ng) }
         }
         if (occupied == true && buckled == true) return true
-        // 시연 모드(debug): 에뮬레이터에는 안전벨트 상태가 없어(SDK는 늘 false) Virtual Console의 착석만 본다
+        // Pleos 에뮬레이터: 안전벨트 상태가 없어(SDK는 늘 false) Virtual Console의 착석만 본다 (실차에서는 꺼짐)
         if (emulator.enabled()) {
             return EmulatorSeatState.seatKey(area.values.map { it.name })?.let { emulator.occupied(it) } == true
         }

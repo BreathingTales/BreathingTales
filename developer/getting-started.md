@@ -23,7 +23,7 @@ AGP는 Android Studio가 지원하는 최고 버전에 맞춰 두었습니다. S
 ./gradlew test                 # 전체 단위 테스트
 ```
 
-release 빌드와 서명은 "빌드와 릴리스" 문서에서 다룰 예정입니다.
+release 빌드와 서명은 [빌드와 릴리스](build-release.md)에 있습니다.
 
 ## 3. 에뮬레이터 준비
 
@@ -76,6 +76,8 @@ SDK 동작을 하나씩 확인하는 debug 전용 화면입니다. 런처 아이
 adb shell am start --user 10 -n com.breathingtales/com.breathingtales.probe.ProbeActivity
 adb logcat -s BTProbe
 ```
+
+`--ez <이름> true`를 붙이면 확인 항목 하나만 실행합니다. 예: `seatRead`(시트를 움직이지 않고 SDK 위치·착석·벨트 값만 읽기), `seatSway`(방석 기울기·등받이를 높이와 함께 움직여 보기). 오디오 포커스 손실은 `FocusStealReceiver`로 만듭니다 ([테스트](testing.md) 3장).
 
 ## 7. 처음 읽을 코드
 

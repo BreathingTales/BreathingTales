@@ -1,8 +1,6 @@
 package com.breathingtales.di
 
-import com.breathingtales.BuildConfig
 import com.breathingtales.data.vehicle.EmulatorSeatState
-import com.breathingtales.domain.repository.SettingsRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -13,9 +11,11 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object VehicleModule {
-    /** 시연 모드(11): debug 빌드에서 부모 설정의 시연 모드를 켰을 때만 에뮬레이터 시트 값을 Virtual Console에서 읽는다 */
+    /**
+     * Pleos 에뮬레이터에서만 시트 위치·착석을 Virtual Console에서 읽는다 (debug·release 모두).
+     * 심사가 에뮬레이터에서 release APK로 이뤄지므로 시트 들썩임도 그대로 확인할 수 있게 한다. 실차에서는 늘 꺼져 SDK 값만 본다
+     */
     @Provides
     @Singleton
-    fun emulatorSeatState(settings: SettingsRepository): EmulatorSeatState =
-        EmulatorSeatState { BuildConfig.DEBUG && settings.settings.value.demoHud }
+    fun emulatorSeatState(): EmulatorSeatState = EmulatorSeatState { EmulatorSeatState.isEmulator }
 }

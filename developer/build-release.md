@@ -17,7 +17,8 @@
 | 차량 구현 | Pleos 어댑터, `-PfakeVehicle=true`면 Fake | 항상 Pleos 어댑터 |
 | Fake 차량·조작 패널 | 포함 (`src/debug`) | 없음 |
 | 확인용 화면 `ProbeActivity` | 포함 | 없음 |
-| 시연 모드 (안전 장치 HUD, 에뮬레이터 시트 값 읽기) | 부모 설정에서 켤 수 있음 | 토글이 보이지 않음 |
+| 시연 모드 (안전 장치 HUD) | 부모 설정에서 켤 수 있음 | 늘 꺼짐. 토글이 없고, 저장된 설정과 관계없이 `BuildConfig.DEBUG`로 막음 |
+| 에뮬레이터 시트 값 읽기 (Virtual Console) | 에뮬레이터에서만 | 같음 (에뮬레이터에서만. 실차에서는 꺼짐) |
 | 창문·`CAR_DRIVE` 권한 | 확인용 화면 때문에 있음 | 없음 |
 | 서명 | 디버그 키 | 로컬 릴리스 키 (아래) |
 | 난독화 | 없음 | 없음 (`isMinifyEnabled = false`) |

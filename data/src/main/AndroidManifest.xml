@@ -22,4 +22,8 @@
     <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
     <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Pleos 에뮬레이터에서만: 시트 위치·착석을 Virtual Console(127.0.0.1:8088)에서 읽는다 (EmulatorSeatState).
+         Pleos TTS·STT SDK도 같은 권한을 선언한다 -->
+    <uses-permission android:name="android.permission.INTERNET" />
 </manifest>

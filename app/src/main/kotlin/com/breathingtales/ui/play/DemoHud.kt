@@ -80,7 +80,7 @@ fun BoxScope.DemoHud(monitor: SafetyMonitor, vehicle: VehicleState, avd: AvdStat
         monitor.seatLift?.let { SeatLiftRows(it) } ?: HudRow("시트", null)
         HudRow("실내등", monitor.cabinLight?.let(::lampText))
         HudRow("독서등", monitor.readingLight?.let(::lampText))
-        Text("시트 위치·착석은 시연 모드에서 Virtual Console 값으로 읽어요 (에뮬레이터 SDK는 늘 0)", style = Pleos.type.labelSmall, color = Color(0xFF9EA3AA))
+        Text("에뮬레이터에서는 시트 위치·착석을 Virtual Console 값으로 읽어요 (SDK는 늘 0)", style = Pleos.type.labelSmall, color = Color(0xFF9EA3AA))
         monitor.restoreFailures?.let {
             HudRow("복원", if (it.isEmpty()) "시작 전 상태로 되돌림 ✓" else "되돌리지 못함: ${it.joinToString()}")
         }

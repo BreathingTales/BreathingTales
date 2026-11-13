@@ -38,7 +38,9 @@ keystore/
 
 # 콘텐츠 제작 도구 (로컬 전용): 대본 원본·TTS 생성 스크립트·원본 wav.
 # 앱이 쓰는 결과물(story.json, mp3)은 app/src/main/assets/stories/에 있다
-/tools/
+# 예외: 차량 감시 페이지(tools/demo)는 심사·시연용으로 공개한다
+/tools/*
+!/tools/demo/
 
 # Claude 결과물 (공모전 제출 자료 등, 로컬 전용)
 /Claude outputs/

@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>차량 감시</title>
+<!--
+  숨쉬는 동화 차량 감시 페이지 (심사·시연용).
+  앱 코드와 무관하게 Pleos Virtual Console API(/vehicle/state)만 0.2초마다 읽어,
+  차 쪽에서 본 값이 안전 한도 안에 있었는지와 시작 전 값으로 돌아왔는지를 기록한다.
+  여는 법: 이 파일을 브라우저로 연다. 먼저 `adb forward tcp:8088 tcp:8088`.
+  이 페이지가 Virtual Console처럼 세션 신호를 보내므로 Virtual Console 탭을 가려도 AVD가 꺼지지 않는다.
+-->
+<style>
+  :root {
+    --bg: #0f1216; --panel: #171b21; --line: #2a313b; --text: #e7ebf0; --dim: #8b95a3;
+    --ok: #3ccf8e; --bad: #ff5a5f; --warn: #ffb547; --accent: #5aa9ff; --limit: #ff5a5f; --base: #8b95a3;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 "Pretendard", "Malgun Gothic", system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0 8px 0 0; }
+  .pill { padding: 3px 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font-size: 13px; }
+  .pill.ok { color: var(--ok); border-color: var(--ok); } .pill.bad { color: var(--bad); border-color: var(--bad); }
+  .pill.warn { color: var(--warn); border-color: var(--warn); }
+  button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  button:hover { border-color: var(--accent); }
+  .spacer { flex: 1; }
+  main { display: grid; grid-template-columns: 350px 1fr; gap: 12px; padding: 12px 16px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  section h2 { font-size: 13px; color: var(--dim); font-weight: 600; margin: 0 0 8px; letter-spacing: .02em; }
+  .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 3px 0; vertical-align: top; } td:first-child { color: var(--dim); width: 48%; white-space: nowrap; padding-right: 8px; }
+  td.v { font-variant-numeric: tabular-nums; }
+  .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; margin-right: 6px; border: 1px solid #0006; }
+  .verdict { display: grid; grid-template-columns: 22px 1fr; gap: 2px 6px; }
+  .verdict .i { font-weight: 700; } .i.ok { color: var(--ok); } .i.bad { color: var(--bad); } .i.wait { color: var(--warn); } .i.na { color: var(--dim); }
+  .verdict .d { color: var(--dim); font-size: 12px; grid-column: 2; margin-bottom: 4px; }
+  .chart { margin-bottom: 10px; } .chart .t { font-size: 12px; color: var(--dim); margin-bottom: 2px; display: flex; gap: 10px; }
+  .chart .t b { color: var(--text); font-weight: 600; }
+  svg { display: block; width: 100%; }
+  .banner { display: none; margin: 12px 16px 0; padding: 10px 14px; border-radius: 10px; background: #3a1416; border: 1px solid var(--bad); color: #ffd6d7; }
+  .banner.show { display: block; }
+  .note { color: var(--dim); font-size: 12px; margin: 10px 0 0; border-top: 1px solid var(--line); padding-top: 8px; }
+  .legend { font-size: 12px; color: var(--dim); }
+  .legend i { display: inline-block; width: 18px; height: 0; border-top: 2px dashed; vertical-align: middle; margin: 0 4px 0 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>차량 감시 · Virtual Console</h1>
+  <span id="conn" class="pill">연결 중…</span>
+  <span id="avd" class="pill">AVD ?</span>
+  <span id="park" class="pill">정차 ?</span>
+  <span id="phase" class="pill">대기</span>
+  <span id="clock" class="pill">0:00</span>
+  <div class="spacer"></div>
+  <button id="rebase" title="이야기를 시작하기 직전에 누릅니다. 지금 값을 시작 전 상태로 삼고 기록을 새로 시작합니다">새 시연 (기준 잡기)</button>
+  <button id="export">기록 저장</button>
+  <button id="open" title="저장한 기록을 다시 봅니다 (PT 질의응답용). 실시간 감시는 멈춥니다">기록 열기</button>
+  <input id="file" type="file" accept="application/json" hidden>
+</header>
+<div id="avdBanner" class="banner">⚠ AVD가 꺼져 있습니다(availability.available = false). 이 상태에서는 앱의 차량 명령 대부분이 오류 없이 무시됩니다. Virtual Console 상단 AVD를 Enabled로 켜 주세요.</div>
+<main>
+  <div class="col">
+    <section><h2>판정 (차 쪽 값 기준)</h2><div id="verdict" class="verdict"></div>
+      <p class="note" id="note"></p></section>
+    <section><h2>지금 상태</h2><table id="now"></table></section>
+  </div>
+  <div class="col">
+    <section>
+      <h2>시간에 따른 변화 <span class="legend"><i style="border-color:var(--limit)"></i>허용 한도 <i style="border-color:var(--base)"></i>시작 전 값</span></h2>
+      <div id="charts"></div>
+    </section>
+  </div>
+</main>
+<script>
+// ---- 설정: 앱의 SafetyLimits와 같은 숫자 (앱 코드를 읽지 않는 독립 검증이므로 바뀌면 직접 고친다) ----
+const CONSOLE = 'http://127.0.0.1:8088';
+const FAN_RANGE = [1, 8];                 // Pleos 에뮬레이터 풍량 범위
+const MAX_FAN_RATIO = 0.8;                // 풍량 최대 80%
+const FAN_MAX = Math.floor(FAN_RANGE[1] * MAX_FAN_RATIO);  // = 6
+const TEMP_ABS = [20, 26];                // 온도 20~26℃
+const TEMP_DELTA = 2;                     // 시작값 ±2℃
+const SEAT_HEAT_MAX = 1;                  // 열선 1단
+const SEAT_LIFT_MAX = 10;                 // 높이·방석 기울기 범위(0~100)의 10%
+// 에뮬레이터 시트는 100ms마다 5씩 움직여 한 번 들썩임이 0.2~0.5초라, 1초마다 읽으면 꼭대기를 놓친다
+const POLL_MS = 200;
+const CLIENT = 'monitor-' + Math.random().toString(36).slice(2, 8);
+
+// ---- 상태 ----
+let samples = [];   // {t, ...값}
+let base = null;    // 시작 전 값 (새 시연 시)
+let t0 = Date.now();
+let lastOk = 0;
+let replay = false;   // 저장한 기록을 보는 중이면 실시간으로 읽지 않는다
+const nowT = () => replay ? samples[samples.length - 1].t : Date.now();
+
+const $ = id => document.getElementById(id);
+const fmtT = ms => { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+function pick(d) {
+  const h = d.hvac || {}, b = d.body || {}, s = d.seat || {};
+  const rd = b.reading_lights || {}, doors = b.doors || {}, win = b.windows || {};
+  return {
+    gear: d.gear?.actual?.value ?? '?',
+    speed: d.controls?.speed_kph ?? 0,
+    doorsOpen: Object.entries(doors).filter(([, v]) => v).map(([k]) => k),
+    avail: d.availability?.available ?? false,
+    power: !!h.power_on,
+    fan: h.fan_speed,
+    dirD: h.driver?.fan_direction_label, dirP: h.passenger?.fan_direction_label,
+    tempD: h.driver?.temp_c, tempP: h.passenger?.temp_c,
+    heatRL: h.row2?.left_seat_temp, heatRR: h.row2?.right_seat_temp,
+    ambMode: b.ambient_light?.mode, ambColor: b.ambient_light?.color, ambBright: b.ambient_light?.brightness_pct,
+    cabin: !!b.cabin_light?.on,
+    readFL: !!rd.front_left, readFR: !!rd.front_right, readRL: !!rd.rear_left, readRR: !!rd.rear_right,
+    seatH: s.positions?.height?.passenger, seatT: s.positions?.tilt?.passenger, occ: !!s.occupied?.passenger,
+    // 앱이 움직이지 않는 시트 값: 조수석 등받이·앞뒤·허리, 다른 좌석 전부
+    seatOther: seatOther(s.positions),
+    windows: [win.front_left, win.front_right, win.rear_left, win.rear_right].map(v => v ?? 0).join(','),
+  };
+}
+function seatOther(pos) {
+  if (!pos) return '';
+  const out = [];
+  for (const [axis, seats] of Object.entries(pos)) {
+    for (const [seat, v] of Object.entries(seats || {})) {
+      if (seat === 'passenger' && (axis === 'height' || axis === 'tilt')) continue;
+      out.push(`${seat}.${axis}=${v}`);
+    }
+  }
+  return out.sort().join(',');
+}
+function diffList(a, b) {
+  const A = new Map((a || '').split(',').map(x => x.split('='))), out = [];
+  for (const [k, v] of (b || '').split(',').map(x => x.split('='))) if (A.get(k) !== v) out.push(`${k} ${A.get(k)} → ${v}`);
+  return out.join(', ');
+}
+const parked = v => v.gear === 'Park' && v.speed === 0 && v.doorsOpen.length === 0;
+
+// 앱이 바꾸고 되돌리는 항목. 복원 판정에 쓴다
+const RESTORED = [
+  ['power', '공조 전원', v => v ? '켜짐' : '꺼짐'],
+  ['fan', '풍량'], ['dirD', '풍향 운전석'], ['dirP', '풍향 조수석'],
+  ['tempD', '온도 운전석', v => v + '℃'], ['tempP', '온도 조수석', v => v + '℃'],
+  ['heatRL', '열선 뒷좌석 왼쪽'], ['heatRR', '열선 뒷좌석 오른쪽'],
+  ['ambColor', '무드등 색'], ['ambBright', '무드등 밝기', v => v + '%'], ['ambMode', '무드등 스위치'],
+  ['cabin', '실내등', onOff], ['readRL', '독서등 뒷좌석 왼쪽', onOff], ['readRR', '독서등 뒷좌석 오른쪽', onOff],
+  ['seatH', '조수석 높이'], ['seatT', '조수석 방석 기울기'],
+];
+const LAMPS = new Set(['cabin', 'readRL', 'readRR']);
+function onOff(v) { return v ? '켜짐' : '꺼짐'; }
+const changed = (v, k) => base && v[k] !== base[k];
+
+// ---- 수집 ----
+async function poll() {
+  if (replay) return;
+  try {
+    const r = await fetch(CONSOLE + '/vehicle/state', { cache: 'no-store' });
+    const v = pick(await r.json());
+    v.t = Date.now();
+    if (!base) rebase(v);
+    samples.push(v);
+    lastOk = v.t;
+    render(v);
+  } catch (e) {
+    $('conn').textContent = '연결 끊김 (adb forward 8088 확인)'; $('conn').className = 'pill bad';
+  }
+}
+function keepalive() {
+  if (replay) return;
+  fetch(CONSOLE + '/browser/session?client=' + CLIENT, { method: 'POST' }).catch(() => {});
+}
+function rebase(v) {
+  base = { ...(v || samples[samples.length - 1]) };
+  t0 = base.t || Date.now();
+  samples = v ? [] : [base];
+}
+
+// ---- 판정 ----
+function tempBand(b) { return [Math.max(TEMP_ABS[0], b - TEMP_DELTA), Math.min(TEMP_ABS[1], b + TEMP_DELTA)]; }
+
+/*
+ * 판정 문구 원칙: 이 페이지가 0.2초마다 읽은 차량 값으로 확인한 것만 쓴다.
+ * 앱이 왜 그렇게 했는지, 누가 바꿨는지는 이 페이지가 알 수 없으므로 판정 문구에 넣지 않는다.
+ */
+function verdicts(cur) {
+  const out = [];
+  const active = samples.some(s => RESTORED.some(([k]) => changed(s, k)));
+  const add = (state, title, detail) => out.push({ state, title, detail });
+  const n = samples.length;
+
+  const fans = samples.map(s => s.fan).filter(x => x != null);
+  const fanTop = fans.length ? Math.max(...fans) : null;
+  if (fanTop == null || fanTop <= FAN_MAX) {
+    add('ok', `풍량 ${FAN_MAX} 이하 (범위 ${FAN_RANGE.join('~')}의 ${MAX_FAN_RATIO * 100}%)`, `읽은 값 중 최고 ${fanTop ?? '-'}`);
+  } else {
+    add('bad', `풍량 ${FAN_MAX} 넘음 (범위 ${FAN_RANGE.join('~')}의 ${MAX_FAN_RATIO * 100}%)`,
+      `읽은 값 중 최고 ${fanTop}` + (fanTop <= base.fan ? ` · 시작값도 ${base.fan}이었음` : ''));
+  }
+
+  for (const [k, name] of [['tempD', '운전석'], ['tempP', '조수석']]) {
+    const [lo, hi] = tempBand(base[k]);
+    const ts = samples.map(s => s[k]).filter(x => x != null);
+    const out1 = ts.filter(t => t < lo || t > hi);
+    const onlyBase = out1.every(t => t === base[k]);
+    const range = ts.length ? Math.min(...ts) + '~' + Math.max(...ts) : '-';
+    if (!out1.length) add('ok', `온도 ${name} ${lo}~${hi}℃ 안`, `시작 ${base[k]}℃ · 읽은 값 ${range}℃`);
+    else add(onlyBase ? 'ok' : 'bad', `온도 ${name} ${lo}~${hi}℃ ${onlyBase ? '밖은 시작값뿐' : '넘음'}`, `시작 ${base[k]}℃ · 읽은 값 ${range}℃`);
+  }
+
+  const heats = samples.flatMap(s => [s.heatRL, s.heatRR]).filter(x => x != null);
+  const heatTop = heats.length ? Math.max(...heats) : 0;
+  add(heatTop <= SEAT_HEAT_MAX ? 'ok' : 'bad', `뒷좌석 시트 열선 ${SEAT_HEAT_MAX}단 ${heatTop <= SEAT_HEAT_MAX ? '이하' : '넘음'}`, `읽은 값 중 최고 ${heatTop}단`);
+
+  for (const [k, name] of [['seatH', '조수석 높이'], ['seatT', '조수석 방석 기울기']]) {
+    const hs = samples.map(s => s[k]).filter(x => x != null);
+    if (base[k] == null) continue;
+    if (hs.some(h => h !== base[k])) {
+      const top = Math.max(...hs), low = Math.min(...hs);
+      const ok = top <= base[k] + SEAT_LIFT_MAX && low >= base[k];
+      add(ok ? 'ok' : 'bad', `${name}: 시작 +${SEAT_LIFT_MAX} 이내, 시작보다 낮아지지 않음`, `시작 ${base[k]} · 최고 ${top} · 최저 ${low}`);
+    } else {
+      add('na', `${name} 변화 없음`, `읽은 값이 모두 시작값 ${base[k]}`);
+    }
+  }
+  // 시트가 움직인 순간(직전 읽기와 값이 다름)의 조건. 착석·정차가 아닌데 움직였으면 ✗
+  const rose = samples.filter((s, i) => i > 0 && (s.seatH > samples[i - 1].seatH || s.seatT > samples[i - 1].seatT));
+  if (rose.length) {
+    const empty = rose.filter(s => !s.occ), notParked = rose.filter(s => !parked(s));
+    add(empty.length ? 'bad' : 'ok', empty.length ? '조수석이 비어 있는데 시트가 올라감' : '시트가 올라갈 때 조수석은 앉음',
+      `Virtual Console 착석 값 기준${empty.length ? ` · ${fmtT(empty[0].t - t0)}` : ''}`);
+    add(notParked.length ? 'bad' : 'ok', notParked.length ? '정차가 아닌데 시트가 올라감' : '시트가 올라갈 때 P·0km/h·문 닫힘',
+      notParked.length ? fmtT(notParked[0].t - t0) : `올라간 읽기 ${rose.length}번 모두`);
+  }
+  const otherChanged = samples.find(s => s.seatOther !== base.seatOther);
+  add(otherChanged ? 'bad' : 'ok', otherChanged ? '다른 시트 값이 바뀜' : '등받이·다른 좌석 시트 변화 없음',
+    otherChanged ? diffList(base.seatOther, otherChanged.seatOther) : '조수석 등받이·앞뒤·허리, 운전석·뒷좌석 시트 전부');
+
+  const winChanged = samples.some(s => s.windows !== base.windows);
+  add(winChanged ? 'bad' : 'ok', winChanged ? '창문 값이 바뀜' : '창문 변화 없음', `창문 4개 값 (시작 ${base.windows})`);
+
+  // 조건(P·0km/h·문 닫힘)이 깨진 첫 순간부터 공조·무드등 값이 기준과 같아지기까지
+  const breakAt = active ? samples.findIndex((s, i) => i > 0 && parked(samples[i - 1]) && !parked(s)) : -1;
+  if (breakAt > 0) {
+    const nonLamp = RESTORED.filter(([k]) => !LAMPS.has(k) && k !== 'ambMode');
+    const backAt = samples.findIndex((s, i) => i >= breakAt && nonLamp.every(([k]) => s[k] === base[k]));
+    const b = samples[breakAt];
+    const why = b.gear !== 'Park' ? `기어 ${b.gear}` : b.doorsOpen.length ? '문 열림' : `속도 ${b.speed}km/h`;
+    if (backAt >= 0) {
+      const sec = Math.round((samples[backAt].t - b.t) / 1000);
+      add('ok', `${why} 뒤 공조·무드등이 기준 값으로 돌아옴`,
+        `${fmtT(b.t - t0)}에 ${why} → ${sec <= 1 ? '1초 안에' : sec + '초 뒤'} 공조 전원·풍량·풍향·온도·열선·무드등 색·밝기가 기준과 같음`);
+    } else {
+      add('wait', `${why} 뒤 공조·무드등이 아직 기준과 다름`, `${fmtT(b.t - t0)}부터`);
+    }
+  }
+
+  if (active) {
+    const diff = RESTORED.filter(([k]) => changed(cur, k));
+    if (!diff.length) add('ok', '지금 값이 기준과 같음', `아래 '지금 상태'의 ${RESTORED.length}개 항목 모두`);
+    else add('wait', '지금 값이 기준과 다름', diff.map(([, nm]) => nm).join(', ') +
+      (!parked(cur) && diff.every(([k]) => LAMPS.has(k)) ? ' · 참고: Pleos 에뮬레이터는 기어가 P가 아니면 등 스위치 명령을 거부함 (2026-11-10 확인)' : ''));
+  }
+  return { out, active, n };
+}
+
+// ---- 그리기 ----
+const W = 900, H = 70, PAD = 4;
+function chart(title, now, series, o = {}) {
+  const tEnd = Math.max(nowT(), t0 + 60000), span = tEnd - t0;
+  const x = t => PAD + (W - 2 * PAD) * (t - t0) / span;
+  const [lo, hi] = o.range;
+  const y = v => H - PAD - (H - 2 * PAD) * (v - lo) / (hi - lo || 1);
+  let svg = '';
+  if (o.band) svg += `<rect x="0" width="${W}" y="${y(o.band[1])}" height="${y(o.band[0]) - y(o.band[1])}" fill="#3ccf8e14"/>`;
+  for (const l of o.limits || []) svg += `<line x1="0" x2="${W}" y1="${y(l)}" y2="${y(l)}" stroke="var(--limit)" stroke-dasharray="5 4" stroke-width="1.5"/>`;
+  for (const l of o.bases || []) svg += `<line x1="0" x2="${W}" y1="${y(l)}" y2="${y(l)}" stroke="var(--base)" stroke-dasharray="2 4"/>`;
+  for (const e of events()) svg += `<line x1="${x(e.t)}" x2="${x(e.t)}" y1="0" y2="${H}" stroke="${e.color}" stroke-width="1.5" opacity=".8"/>`;
+  for (const s of series) {
+    let d = '', prev = null;
+    for (const p of samples) {
+      const v = s.get(p); if (v == null) { prev = null; continue; }
+      d += prev == null ? `M${x(p.t)},${y(v)}` : `H${x(p.t)}V${y(v)}`; prev = v;
+    }
+    svg += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2"/>`;
+  }
+  return `<div class="chart"><div class="t">${title} <b>${now}</b></div><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" height="${H}">${svg}</svg></div>`;
+}
+function colorStrip(now) {
+  const tEnd = Math.max(nowT(), t0 + 60000), span = tEnd - t0;
+  const x = t => PAD + (W - 2 * PAD) * (t - t0) / span;
+  let svg = '';
+  samples.forEach((p, i) => {
+    const next = samples[i + 1]?.t ?? nowT();
+    const op = p.ambMode === 'Off' ? 0.15 : Math.max(0.15, (p.ambBright ?? 0) / 100);
+    svg += `<rect x="${x(p.t)}" width="${Math.max(1, x(next) - x(p.t) + 1)}" y="0" height="28" fill="${p.ambColor || '#000'}" opacity="${op}"/>`;
+  });
+  return `<div class="chart"><div class="t">무드등 색·밝기 <b>${now}</b></div><svg viewBox="0 0 ${W} 28" preserveAspectRatio="none" height="28">${svg}</svg></div>`;
+}
+function events() {
+  const ev = [];
+  for (let i = 1; i < samples.length; i++) {
+    const a = samples[i - 1], b = samples[i];
+    if (a.gear !== b.gear) ev.push({ t: b.t, color: b.gear === 'Park' ? 'var(--ok)' : 'var(--bad)', label: '기어 ' + b.gear });
+    if (a.doorsOpen.length !== b.doorsOpen.length) ev.push({ t: b.t, color: b.doorsOpen.length ? 'var(--warn)' : 'var(--ok)', label: b.doorsOpen.length ? '문 열림' : '문 닫힘' });
+  }
+  return ev;
+}
+
+function render(cur) {
+  $('conn').textContent = replay ? '기록 보기 (실시간 아님)' : '연결됨'; $('conn').className = 'pill ' + (replay ? 'warn' : 'ok');
+  $('avd').textContent = cur.avail ? 'AVD 켜짐' : 'AVD 꺼짐'; $('avd').className = 'pill ' + (cur.avail ? 'ok' : 'bad');
+  $('avdBanner').classList.toggle('show', !cur.avail);
+  const p = parked(cur);
+  $('park').textContent = p ? 'P · 0km/h · 문 닫힘' : `기어 ${cur.gear} · ${cur.speed}km/h${cur.doorsOpen.length ? ' · 문 열림' : ''}`;
+  $('park').className = 'pill ' + (p ? 'ok' : 'bad');
+  $('clock').textContent = fmtT(cur.t - t0);
+
+  const { out, active } = verdicts(cur);
+  const anyBad = out.some(o => o.state === 'bad');
+  const restored = out.some(o => o.title === '지금 값이 기준과 같음');
+  $('phase').textContent = !active ? '기준과 같음 (변화 없음)' : restored ? '변화 뒤 기준 값으로 돌아옴' : '기준과 다른 값 있음';
+  $('phase').className = 'pill ' + (anyBad ? 'bad' : restored ? 'ok' : active ? 'warn' : '');
+  const icon = { ok: '✓', bad: '✗', wait: '…', na: '–' };
+  $('note').textContent = `Virtual Console API를 ${replay ? '읽어 기록한' : '0.2초마다 읽은'} 값 ${samples.length}개로만 판정합니다. 읽기 사이의 짧은 변화는 놓칠 수 있고, 누가 값을 바꿨는지는 알 수 없습니다. 기준 = ${replay ? '기록의 첫 값' : '「새 시연」을 누른 때(없으면 페이지를 연 때)의 값'}. 주차 브레이크·UX 제한·안전벨트는 API에 없어 보지 않습니다.`;
+  $('verdict').innerHTML = out.map(o => `<span class="i ${o.state}">${icon[o.state]}</span><span>${o.title}</span><span class="d">${o.detail}</span>`).join('');
+
+  const row = (n, v, mark) => `<tr><td>${n}</td><td class="v">${v}${mark ? ' <span style="color:var(--warn)">●</span>' : ''}</td></tr>`;
+  $('now').innerHTML =
+    row('기어 · 속도', `${cur.gear} · ${cur.speed} km/h`) +
+    row('문', cur.doorsOpen.length ? cur.doorsOpen.join(', ') + ' 열림' : '모두 닫힘') +
+    row('창문', cur.windows === base.windows ? '변화 없음' : cur.windows, cur.windows !== base.windows) +
+    RESTORED.map(([k, n, f]) => {
+      const show = f || (v => v ?? '-');
+      const val = k === 'ambColor' ? `<span class="swatch" style="background:${cur[k]}"></span>${cur[k]}` : show(cur[k]);
+      return row(n, val + (changed(cur, k) ? ` <span style="color:var(--dim)">(시작 ${k === 'ambColor' ? base[k] : show(base[k])})</span>` : ''), changed(cur, k));
+    }).join('') +
+    row('조수석 착석', cur.occ ? '앉음' : '비어 있음');
+
+  const [lo, hi] = tempBand(base.tempD), [lo2, hi2] = tempBand(base.tempP);
+  $('charts').innerHTML =
+    chart('풍량', `${cur.fan} (한도 ${FAN_MAX})`, [{ get: s => s.fan, color: 'var(--accent)' }], { range: [0, FAN_RANGE[1]], limits: [FAN_MAX], bases: [base.fan] }) +
+    chart('온도 운전석 · 조수석', `${cur.tempD}℃ · ${cur.tempP}℃ (허용 ${lo}~${hi}℃)`,
+      [{ get: s => s.tempD, color: '#ffb547' }, { get: s => s.tempP, color: '#ff7ab6' }],
+      { range: [TEMP_ABS[0] - 1, TEMP_ABS[1] + 1], band: [Math.max(lo, lo2), Math.min(hi, hi2)], limits: [lo, hi], bases: [base.tempD] }) +
+    colorStrip(`${cur.ambColor} ${cur.ambBright}% (${cur.ambMode})`) +
+    chart('무드등 밝기', cur.ambBright + '%', [{ get: s => s.ambBright, color: '#c9a7ff' }], { range: [0, 100], bases: [base.ambBright] }) +
+    chart('실내등 · 독서등 (켜짐=위)', `실내등 ${onOff(cur.cabin)} · 독서등 ${onOff(cur.readRL)}/${onOff(cur.readRR)}`,
+      [{ get: s => s.cabin ? 2.6 : 2, color: '#fff3b0' }, { get: s => s.readRL ? 1.6 : 1, color: '#ffd166' }, { get: s => s.readRR ? 0.6 : 0, color: '#f4a261' }], { range: [-0.2, 2.8] }) +
+    chart('시트 열선 뒷좌석', `${cur.heatRL} / ${cur.heatRR}단 (한도 ${SEAT_HEAT_MAX})`,
+      [{ get: s => s.heatRL, color: '#ff8c42' }, { get: s => s.heatRR, color: '#ffb38a' }], { range: [0, 3], limits: [SEAT_HEAT_MAX] }) +
+    chart('조수석 높이 · 방석 기울기', `${cur.seatH} · ${cur.seatT ?? '-'} (한도 시작 +${SEAT_LIFT_MAX}) · ${cur.occ ? '앉음' : '비어 있음'}`,
+      [{ get: s => s.seatH, color: '#7ee0ff' }, { get: s => s.seatT, color: '#a8f0c6' }],
+      { range: [0, 100], limits: [base.seatH + SEAT_LIFT_MAX, ...(base.seatT != null ? [base.seatT + SEAT_LIFT_MAX] : [])], bases: [base.seatH, ...(base.seatT != null ? [base.seatT] : [])] }) +
+    chart('기어 P·속도 0·문 닫힘 (모두 만족 = 위)', p ? '만족' : '깨짐', [{ get: s => parked(s) ? 1 : 0, color: 'var(--ok)' }], { range: [-0.2, 1.2] });
+}
+
+$('rebase').onclick = () => {
+  if (replay) { replay = false; base = null; samples = []; return; }  // 기록 보기를 끝내고 다음 읽기부터 새로 시작
+  if (samples.length) rebase();
+};
+
+/** 저장한 기록({base, samples})을 그린다. ?replay=<이름>이면 같은 폴더의 <이름>.js가 이 함수를 부른다 (자체 확인용) */
+function loadRecord(rec) {
+  replay = true;
+  samples = rec.samples || rec.raw.map(r => ({ ...pick(r.d), t: r.t }));
+  base = rec.base || samples[0]; t0 = base.t;
+  render(samples[samples.length - 1]);
+}
+window.loadRecord = loadRecord;
+$('open').onclick = () => $('file').click();
+$('file').onchange = async e => { const f = e.target.files[0]; if (f) loadRecord(JSON.parse(await f.text())); };
+const replayName = new URLSearchParams(location.search).get('replay');
+if (replayName) { replay = true; const sc = document.createElement('script'); sc.src = replayName + '.js'; document.body.appendChild(sc); }
+$('export').onclick = () => {
+  const blob = new Blob([JSON.stringify({ base, limits: { FAN_RANGE, FAN_MAX, TEMP_ABS, TEMP_DELTA, SEAT_HEAT_MAX, SEAT_LIFT_MAX }, samples }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'vehicle-monitor-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
+  a.click();
+};
+setInterval(() => { poll(); keepalive(); }, POLL_MS);
+if (!replay) { poll(); keepalive(); }
+</script>
+</body>
+</html>

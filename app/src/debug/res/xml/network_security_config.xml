@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- debug 전용: 시연 모드가 에뮬레이터 안 Virtual Console(127.0.0.1:8088)을 http로 읽는다 (EmulatorSeatState) -->
-<network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">127.0.0.1</domain>
-    </domain-config>
-</network-security-config>

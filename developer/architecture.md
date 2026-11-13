@@ -55,7 +55,7 @@ flowchart LR
 ### `:data`
 | 패키지 | 내용 |
 |---|---|
-| `vehicle` | `PleosVehicleAdapter`(`VehicleEffectPort` 구현), `CarVehicleStateRepository`(AAOS UX 제한·기어·속도·주차 브레이크 + Pleos 도어), `EmulatorSeatState`(시연 모드 전용) |
+| `vehicle` | `PleosVehicleAdapter`(`VehicleEffectPort` 구현), `CarVehicleStateRepository`(AAOS UX 제한·기어·속도·주차 브레이크 + Pleos 도어), `EmulatorSeatState`(Pleos 에뮬레이터에서만 시트 값을 Virtual Console에서 읽음) |
 | `audio` | `Media3AudioPlayer`, `AudioFocusHolder`(연출 전체가 함께 쓰는 오디오 포커스 하나) |
 | `voice` | `PleosTtsSpeech`, `PleosStt`, `MicVoiceInput`, `KeywordMatcher`, `BlowRule`, `SuccessFilter` |
 | `story` | `AssetStoryRepository`, `StoryDto`, `StoryParser` |
