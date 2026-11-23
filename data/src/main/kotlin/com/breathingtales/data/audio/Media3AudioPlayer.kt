@@ -2,11 +2,14 @@ package com.breathingtales.data.audio
 
 import android.content.Context
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.ExperimentalApi
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.breathingtales.domain.model.AudioClip
 import com.breathingtales.domain.port.AudioFocus
@@ -201,6 +204,8 @@ class Media3AudioPlayer @Inject constructor(
         clearMediaItems()
     }
 
+    // 실험 API: Media3를 올리면 대사·효과 타이밍을 다시 확인한다
+    @OptIn(ExperimentalApi::class, UnstableApi::class)
     private fun newPlayer(): ExoPlayer = ExoPlayer.Builder(context)
         // 포커스는 AudioFocusHolder가 하나만 잡는다
         .setAudioAttributes(ATTRIBUTES, /* handleAudioFocus = */ false)
