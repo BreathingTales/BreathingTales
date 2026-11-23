@@ -127,7 +127,7 @@ class FakeVehicleEffectPort @Inject constructor() : VehicleEffectPort {
             temperatureRangeC = 15f..30f,
             temperatureStepC = 0.5f,
             ambientBrightnessRange = 0..100,
-            seatHeatZones = listOf(REAR_LEFT, REAR_RIGHT),
+            seatHeatZones = listOf(DRIVER, PASSENGER, REAR_LEFT, REAR_RIGHT),
             seatHeatMaxLevel = 3,
             seatLiftZones = listOf(PASSENGER),
             seatHeightRange = 0..100,
@@ -149,7 +149,7 @@ class FakeVehicleEffectPort @Inject constructor() : VehicleEffectPort {
             ambientColorRgb = 0xFFFFFF,
             ambientBrightness = 50,
             ambientAutoByDriveMode = true,
-            seatHeatLevels = mapOf(REAR_LEFT to 0, REAR_RIGHT to 0),
+            seatHeatLevels = mapOf(DRIVER to 0, PASSENGER to 0, REAR_LEFT to 0, REAR_RIGHT to 0),
             cabinLight = LampSwitch.OFF,
             readingLights = mapOf(REAR_LEFT to LampSwitch.OFF, REAR_RIGHT to LampSwitch.OFF),
         )

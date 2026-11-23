@@ -4,6 +4,7 @@ import com.breathingtales.data.vehicle.fake.FakeVehicleEffectPort.Companion.DRIV
 import com.breathingtales.data.vehicle.fake.FakeVehicleEffectPort.Companion.INITIAL_CABIN
 import com.breathingtales.data.vehicle.fake.FakeVehicleEffectPort.Companion.PASSENGER
 import com.breathingtales.data.vehicle.fake.FakeVehicleEffectPort.Companion.REAR_LEFT
+import com.breathingtales.data.vehicle.fake.FakeVehicleEffectPort.Companion.REAR_RIGHT
 import com.breathingtales.domain.model.AmbientMode
 import com.breathingtales.domain.model.Airflow
 import com.breathingtales.domain.model.Effect
@@ -40,7 +41,8 @@ class FakeVehicleRoundTripTest {
         assertEquals(mapOf(DRIVER to 20f, PASSENGER to 20.5f), during.temperaturesC)
         assertEquals(AmbientMode.ON, during.ambientMode)
         assertEquals(false, during.ambientAutoByDriveMode)
-        assertEquals(1, during.seatHeatLevels[REAR_LEFT])
+        // 온 가족이 함께: 앞뒤 모든 좌석이 1단
+        assertEquals(mapOf(DRIVER to 1, PASSENGER to 1, REAR_LEFT to 1, REAR_RIGHT to 1), during.seatHeatLevels)
 
         assertEquals(emptyList<String>(), guard.restore())
         assertEquals(INITIAL_CABIN, port.cabin.value)

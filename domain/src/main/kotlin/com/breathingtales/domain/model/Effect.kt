@@ -42,7 +42,7 @@ sealed interface Effect {
         }
     }
 
-    /** 뒷좌석 시트 열선 단계 (0~[MAX]). 허용 단계(1단)를 넘는 값은 SafetyGuard가 낮춘다 */
+    /** 시트 열선 단계 (0~[MAX]). 차가 지원하는 모든 좌석에 같은 단계를 보낸다. 허용 단계(1단)를 넘는 값은 SafetyGuard가 낮춘다 */
     data class SeatHeat(val level: Int) : Effect {
         companion object {
             const val MAX = 3

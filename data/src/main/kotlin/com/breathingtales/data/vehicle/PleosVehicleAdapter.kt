@@ -49,7 +49,7 @@ class PleosVehicleAdapter @Inject constructor(
         val fan: SeatArea?,
         val temperatures: Map<ZoneId, SeatArea>,
         val ambient: SeatArea?,
-        val rearSeats: Map<ZoneId, SeatArea>,
+        val heatSeats: Map<ZoneId, SeatArea>,
         val liftSeats: Map<ZoneId, SeatArea>,
         /** [liftSeats] 중 방석 기울기 이동·위치 읽기도 되는 좌석 */
         val tiltSeats: Set<ZoneId>,
@@ -115,7 +115,7 @@ class PleosVehicleAdapter @Inject constructor(
                     pleosCall<Boolean?>("주행모드 자동색 읽기") { ok, ng -> light.getAmbientColorAutoByDriveModeEnabled(ok, ng) }
                 }
             },
-            seatHeatLevels = a.rearSeats.mapNotNull { (zone, area) ->
+            seatHeatLevels = a.heatSeats.mapNotNull { (zone, area) ->
                 orNull("열선 읽기") {
                     pleosCall<Int?>("열선 읽기") { ok, ng -> seat.getHvacSeatTemperature(area, ok, ng) }
                 }?.let { zone to it }
@@ -219,7 +219,7 @@ class PleosVehicleAdapter @Inject constructor(
     }
 
     override suspend fun setSeatHeat(zone: ZoneId, level: Int) {
-        val area = areas().rearSeats[zone] ?: return skip("열선 영역 ${zone.raw}")
+        val area = areas().heatSeats[zone] ?: return skip("열선 영역 ${zone.raw}")
         pleosSet("열선 $level") { ok, ng -> seat.setHvacSeatTemperature(area, level, ok, ng) }
     }
 
@@ -328,10 +328,11 @@ class PleosVehicleAdapter @Inject constructor(
             }
         }?.entries?.firstOrNull()
 
-        // 뒷좌석(ROW_2)만 연출에 쓴다. 앞좌석은 -3~3(냉방 포함)이라 범위도 다르다
-        val rearSeats = orNull("열선 범위") {
+        // 온 가족이 함께 느끼도록 차가 알려 주는 열선 좌석을 모두 쓴다. 앞좌석은 -3~3(음수는 통풍)이지만
+        // 연출은 0~1단만 보내고, 시작 전 값(통풍 포함)은 그대로 되돌린다
+        val heatSeats = orNull("열선 범위") {
             pleosCall<Map<SeatArea, AreaBounds<Int>>>("열선 범위") { ok, ng -> seat.checkSeatTemperatureCapabilities({ _, map -> ok(map) }, ng) }
-        }.orEmpty().filterKeys { area -> area.values.all { it.name.startsWith("ROW_2") } }
+        }.orEmpty()
 
         // 시트 들썩임 (기획서 5장 7번): 운전석이 아닌 앞좌석만. 좌핸들 기준 조수석(ROW_1_RIGHT).
         // 높이 이동·위치·착석·벨트를 모두 지원하는 영역만 쓴다
@@ -386,8 +387,8 @@ class PleosVehicleAdapter @Inject constructor(
                     ?.let { bounds -> bounds.maxOf { it.minValue }..bounds.minOf { it.maxValue } },
             temperatureStepC = temperatureConfig?.incrementCelsius?.takeIf { it > 0f } ?: DEFAULT_TEMPERATURE_STEP_C,
             ambientBrightnessRange = ambient?.value?.let { it.minValue..it.maxValue },
-            seatHeatZones = rearSeats.keys.map { it.zoneId() },
-            seatHeatMaxLevel = rearSeats.values.minOfOrNull { it.maxValue } ?: 0,
+            seatHeatZones = heatSeats.keys.map { it.zoneId() },
+            seatHeatMaxLevel = heatSeats.values.minOfOrNull { it.maxValue } ?: 0,
             seatLiftZones = liftSeats.keys.toList(),
             seatHeightRange = heightRange,
             seatTiltRange = tiltRange,
@@ -400,7 +401,7 @@ class PleosVehicleAdapter @Inject constructor(
             fan = fan?.key,
             temperatures = temperatureAreas.keys.associateBy { it.zoneId() },
             ambient = ambient?.key,
-            rearSeats = rearSeats.keys.associateBy { it.zoneId() },
+            heatSeats = heatSeats.keys.associateBy { it.zoneId() },
             liftSeats = liftSeats,
             tiltSeats = tiltSeats,
             readingLights = readingLights,

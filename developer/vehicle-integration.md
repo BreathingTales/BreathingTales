@@ -41,7 +41,7 @@ MVP는 Pleos SDK 세 개와 AAOS 표준 API만 씁니다.
 | 무드등 색·밝기·스위치 | `Light.setAmbientLightBrightnessColor`, `setAmbientLightBrightness`, `setAmbientLightSwitch` | 밝기 0~100 |
 | 주행 모드 자동색 | `Light.setAmbientColorAutoByDriveModeEnabled` | EV 구성 에뮬레이터에는 없음 → 건너뜀 |
 | 실내등·독서등 | `Light.setCabinLightSwitch`, `setReadingLightSwitch` | 켜기·끄기 |
-| 시트 열선 | `Seat.setHvacSeatTemperature` | 뒷좌석 0~3 |
+| 시트 열선 | `Seat.setHvacSeatTemperature` | 차가 알려 주는 모든 좌석. 뒷좌석 0~3, 앞좌석 -3~3(음수는 통풍). 연출은 0~1단만 보냄 |
 | 시트 높이·방석 기울기 | `Seat.moveSeatHeight`, `moveSeatTilt` (`MoveControl`) | 연속 이동, 0~100, 아래 5장 |
 | 창문 | **쓰지 않음** | 아이 손 끼임 위험 |
 

@@ -79,7 +79,7 @@ data class CabinCapabilities(
     val temperatureStepC: Float,
     /** null이면 앰비언트 조명 없음 */
     val ambientBrightnessRange: IntRange?,
-    /** 연출에 쓰는 뒷좌석 열선 영역. 비어 있으면 열선 없음 */
+    /** 연출에 쓰는 열선 영역 (앞뒤 모든 좌석). 비어 있으면 열선 없음 */
     val seatHeatZones: List<ZoneId>,
     val seatHeatMaxLevel: Int,
     /**

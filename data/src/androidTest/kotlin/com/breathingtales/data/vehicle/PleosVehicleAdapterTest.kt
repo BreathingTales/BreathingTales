@@ -49,7 +49,8 @@ class PleosVehicleAdapterTest {
         assertEquals(1..8, caps.fanSpeedRange)
         assertEquals(0.5f, caps.temperatureStepC)
         assertEquals(0..100, caps.ambientBrightnessRange)
-        assertEquals(2, caps.seatHeatZones.size)
+        // 열선은 앞뒤 모든 좌석 (운전석·조수석·뒷좌석 2곳)
+        assertEquals(4, caps.seatHeatZones.size)
         assertEquals(3, caps.seatHeatMaxLevel)
         // 10 대본 재작성: 실내등(켜기·끄기), 뒷좌석 독서등 2곳
         assertTrue(caps.cabinLight)

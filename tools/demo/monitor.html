@@ -113,6 +113,8 @@ function pick(d) {
     fan: h.fan_speed,
     dirD: h.driver?.fan_direction_label, dirP: h.passenger?.fan_direction_label,
     tempD: h.driver?.temp_c, tempP: h.passenger?.temp_c,
+    // 열선: 앞좌석은 -3~3(음수는 통풍), 뒷좌석은 0~3
+    heatFL: h.driver?.seat_temp, heatFR: h.passenger?.seat_temp,
     heatRL: h.row2?.left_seat_temp, heatRR: h.row2?.right_seat_temp,
     ambMode: b.ambient_light?.mode, ambColor: b.ambient_light?.color, ambBright: b.ambient_light?.brightness_pct,
     cabin: !!b.cabin_light?.on,
@@ -146,7 +148,7 @@ const RESTORED = [
   ['power', '공조 전원', v => v ? '켜짐' : '꺼짐'],
   ['fan', '풍량'], ['dirD', '풍향 운전석'], ['dirP', '풍향 조수석'],
   ['tempD', '온도 운전석', v => v + '℃'], ['tempP', '온도 조수석', v => v + '℃'],
-  ['heatRL', '열선 뒷좌석 왼쪽'], ['heatRR', '열선 뒷좌석 오른쪽'],
+  ['heatFL', '열선 운전석'], ['heatFR', '열선 조수석'], ['heatRL', '열선 뒷좌석 왼쪽'], ['heatRR', '열선 뒷좌석 오른쪽'],
   ['ambColor', '무드등 색'], ['ambBright', '무드등 밝기', v => v + '%'], ['ambMode', '무드등 스위치'],
   ['cabin', '실내등', onOff], ['readRL', '독서등 뒷좌석 왼쪽', onOff], ['readRR', '독서등 뒷좌석 오른쪽', onOff],
   ['seatH', '조수석 높이'], ['seatT', '조수석 방석 기울기'],
@@ -212,9 +214,9 @@ function verdicts(cur) {
     else add(onlyBase ? 'ok' : 'bad', `온도 ${name} ${lo}~${hi}℃ ${onlyBase ? '밖은 시작값뿐' : '넘음'}`, `시작 ${base[k]}℃ · 읽은 값 ${range}℃`);
   }
 
-  const heats = samples.flatMap(s => [s.heatRL, s.heatRR]).filter(x => x != null);
+  const heats = samples.flatMap(s => [s.heatFL, s.heatFR, s.heatRL, s.heatRR]).filter(x => x != null);
   const heatTop = heats.length ? Math.max(...heats) : 0;
-  add(heatTop <= SEAT_HEAT_MAX ? 'ok' : 'bad', `뒷좌석 시트 열선 ${SEAT_HEAT_MAX}단 ${heatTop <= SEAT_HEAT_MAX ? '이하' : '넘음'}`, `읽은 값 중 최고 ${heatTop}단`);
+  add(heatTop <= SEAT_HEAT_MAX ? 'ok' : 'bad', `시트 열선(전 좌석) ${SEAT_HEAT_MAX}단 ${heatTop <= SEAT_HEAT_MAX ? '이하' : '넘음'}`, `읽은 값 중 최고 ${heatTop}단`);
 
   for (const [k, name] of [['seatH', '조수석 높이'], ['seatT', '조수석 방석 기울기']]) {
     const hs = samples.map(s => s[k]).filter(x => x != null);
@@ -360,8 +362,9 @@ function render(cur) {
     chart('무드등 밝기', cur.ambBright + '%', [{ get: s => s.ambBright, color: '#c9a7ff' }], { range: [0, 100], bases: [base.ambBright] }) +
     chart('실내등 · 독서등 (켜짐=위)', `실내등 ${onOff(cur.cabin)} · 독서등 ${onOff(cur.readRL)}/${onOff(cur.readRR)}`,
       [{ get: s => s.cabin ? 2.6 : 2, color: '#fff3b0' }, { get: s => s.readRL ? 1.6 : 1, color: '#ffd166' }, { get: s => s.readRR ? 0.6 : 0, color: '#f4a261' }], { range: [-0.2, 2.8] }) +
-    chart('시트 열선 뒷좌석', `${cur.heatRL} / ${cur.heatRR}단 (한도 ${SEAT_HEAT_MAX})`,
-      [{ get: s => s.heatRL, color: '#ff8c42' }, { get: s => s.heatRR, color: '#ffb38a' }], { range: [0, 3], limits: [SEAT_HEAT_MAX] }) +
+    chart('시트 열선 운전석 · 조수석 · 뒷좌석', `${cur.heatFL} · ${cur.heatFR} · ${cur.heatRL} / ${cur.heatRR}단 (한도 ${SEAT_HEAT_MAX}, 음수는 통풍)`,
+      [{ get: s => s.heatFL, color: '#ffd166' }, { get: s => s.heatFR, color: '#ff7ab6' }, { get: s => s.heatRL, color: '#ff8c42' }, { get: s => s.heatRR, color: '#ffb38a' }],
+      { range: [-3, 3], limits: [SEAT_HEAT_MAX] }) +
     chart('조수석 높이 · 방석 기울기', `${cur.seatH} · ${cur.seatT ?? '-'} (한도 시작 +${SEAT_LIFT_MAX}) · ${cur.occ ? '앉음' : '비어 있음'}`,
       [{ get: s => s.seatH, color: '#7ee0ff' }, { get: s => s.seatT, color: '#a8f0c6' }],
       { range: seatRange(), limits: [base.seatH + SEAT_LIFT_MAX, ...(base.seatT != null ? [base.seatT + SEAT_LIFT_MAX] : [])], bases: [base.seatH, ...(base.seatT != null ? [base.seatT] : [])] }) +
