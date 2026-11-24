@@ -54,7 +54,7 @@ import ai.pleos.playground.vehicle.constant.control.FanDirectionType
 import com.breathingtales.ui.theme.BreathingTalesTheme
 import ai.pleos.playground.stt.constant.Mode as SttMode
 import ai.pleos.playground.tts.constant.Mode as TtsMode
-
+// adb shell am start --user 10 -n com.breathingtales/com.breathingtales.probe.ProbeActivity
 /**
  * 02 기술 확인 화면 (debug 빌드 전용 런처).
  * 버튼 하나가 API 하나를 호출하고, 결과는 오른쪽 로그와 logcat `BTProbe` 태그에 남는다.

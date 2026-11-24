@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 앱 아이콘 배경: 동화가 시작되는 밤하늘 남색(#1E2A44)에서 아침 하늘색으로 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54"
+                android:startY="0"
+                android:endX="54"
+                android:endY="108"
+                android:startColor="#FF1E2A44"
+                android:centerColor="#FF2E4F80"
+                android:endColor="#FF4A90E2" />
+        </aapt:attr>
+    </path>
+</vector>

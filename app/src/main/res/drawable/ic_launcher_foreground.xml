@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:pivotX="54"
+        android:pivotY="62"
+        android:scaleX="1.18"
+        android:scaleY="1.18"
+        android:translateY="-8">
+
+        <!-- 책: 금색 표지 -->
+        <path
+            android:fillColor="#FFFFC24B"
+            android:pathData="M30,63Q42,58.5 54,63.5Q66,58.5 78,63V75Q66,70.5 54,76Q42,70.5 30,75Z" />
+        <!-- 책: 펼친 면 -->
+        <path
+            android:fillColor="#FFFFF8EC"
+            android:pathData="M32,61Q43,56.5 54,61.5Q65,56.5 76,61V72.5Q65,68 54,73.5Q43,68 32,72.5Z" />
+        <!-- 책등 -->
+        <path
+            android:pathData="M54,61.5V73.5"
+            android:strokeWidth="0.9"
+            android:strokeColor="#FF2E4F80"
+            android:strokeAlpha="0.35" />
+        <!-- 도로 가운데 점선 -->
+        <path
+            android:pathData="M35.50,66.60 L36.77,66.13 L38.00,65.74 M40.55,65.15 L41.89,64.97 L43.17,64.87 M45.81,64.92 L47.11,65.07 L48.42,65.30 M50.96,66.01 L51.48,66.20 L52.00,66.40 M56.00,66.40 L57.24,65.94 L58.49,65.57 M61.05,65.04 L62.36,64.90 L63.67,64.85 M66.28,64.99 L67.57,65.18 L68.87,65.44 M71.40,66.19 L71.95,66.39 L72.50,66.60"
+            android:strokeWidth="1.4"
+            android:strokeColor="#FF2E4F80"
+            android:strokeAlpha="0.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+
+        <!-- 작은 차 (산호색): 0.72배로 줄여 바퀴가 책 윗면에 닿게 둔다 -->
+        <group
+            android:pivotX="56"
+            android:pivotY="72"
+            android:scaleX="0.72"
+            android:scaleY="0.72"
+            android:translateX="-2"
+            android:translateY="-12.8">
+            <path
+                android:fillColor="#FFFF7A5C"
+                android:pathData="M46,63L49.5,56.5Q50.2,55.5 51.4,55.5H60.6Q61.8,55.5 62.5,56.5L66,63Z" />
+            <path
+                android:fillColor="#FFFF7A5C"
+                android:pathData="M41,62H71Q74,62 74,65V69Q74,72 71,72H41Q38,72 38,69V65Q38,62 41,62Z" />
+            <!-- 창문 -->
+            <path
+                android:fillColor="#FF2E4F80"
+                android:pathData="M49.2,61.6L51.4,57.6H55.2V61.6Z" />
+            <path
+                android:fillColor="#FF2E4F80"
+                android:pathData="M56.8,57.6H60.6L62.8,61.6H56.8Z" />
+            <!-- 바퀴 -->
+            <path
+                android:fillColor="#FF1E2A44"
+                android:pathData="M42.5,72a3.8,3.8 0,1 0,7.6 0a3.8,3.8 0,1 0,-7.6 0z" />
+            <path
+                android:fillColor="#FF1E2A44"
+                android:pathData="M61.9,72a3.8,3.8 0,1 0,7.6 0a3.8,3.8 0,1 0,-7.6 0z" />
+        </group>
+    </group>
+</vector>
