@@ -152,3 +152,20 @@ class RecordingPort(
         if (seatReplied.add(zone to axis) && seatFirstReplyLagMs > 0) delay(seatFirstReplyLagMs)
     }
 }
+
+/** 메모리에 두는 복원 기록. 같은 인스턴스를 새 [SafetyGuard]에 넘기면 "앱을 다시 켠" 것이 된다 */
+class MemoryJournal(var record: com.breathingtales.domain.port.RestoreRecord? = null) :
+    com.breathingtales.domain.port.RestoreJournalPort {
+    /** 저장할 때마다의 기록 (지운 것은 null) */
+    val history = mutableListOf<com.breathingtales.domain.port.RestoreRecord?>()
+
+    override suspend fun load() = record
+    override suspend fun save(record: com.breathingtales.domain.port.RestoreRecord) {
+        this.record = record
+        history += record
+    }
+    override suspend fun clear() {
+        record = null
+        history += null
+    }
+}
