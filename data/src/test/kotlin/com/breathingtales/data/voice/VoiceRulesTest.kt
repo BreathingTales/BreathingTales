@@ -1,5 +1,6 @@
 package com.breathingtales.data.voice
 
+import com.breathingtales.domain.model.BlowSensitivity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -37,13 +38,24 @@ class VoiceRulesTest {
         assertNull(sun.match("해"))
     }
 
-    /** 64ms마다 표본 (16kHz, 1024샘플 버퍼) */
-    private fun BlowRule.feed(fromMs: Long, toMs: Long, db: Float): List<Long> =
-        (fromMs until toMs step 64).filter { onLevel(it, db) }
+    /** 앱처럼 배경 소음을 먼저 채우고 불기를 판정한다 */
+    private class Blow(margin: Float = BlowRule.DEFAULT_MARGIN_DB) {
+        val floor = NoiseFloor()
+        private val rule = BlowRule(floor, margin)
+
+        fun onLevel(timeMs: Long, db: Float): Boolean {
+            floor.onLevel(timeMs, db)
+            return rule.onLevel(timeMs)
+        }
+
+        /** 64ms마다 표본 (16kHz, 1024샘플 버퍼). 성공한 시각 */
+        fun feed(fromMs: Long, toMs: Long, db: Float): List<Long> =
+            (fromMs until toMs step 64).filter { onLevel(it, db) }
+    }
 
     @Test
-    fun `기준 이상이 0_5초 이어지면 한 번 성공하고 길게 불어도 한 번만 센다`() {
-        val rule = BlowRule()
+    fun `소음보다 큰 소리가 0_5초 이어지면 한 번 성공하고 길게 불어도 한 번만 센다`() {
+        val rule = Blow()
         assertEquals(emptyList<Long>(), rule.feed(0, 1_000, -77f))
         val hits = rule.feed(1_000, 4_000, -47f)
         assertEquals(1, hits.size)
@@ -52,15 +64,16 @@ class VoiceRulesTest {
 
     @Test
     fun `잠깐 쉬었다 다시 불면 또 센다`() {
-        val rule = BlowRule()
-        rule.feed(0, 1_000, -47f)
-        rule.feed(1_000, 1_500, -77f)
-        assertEquals(1, rule.feed(1_500, 2_500, -47f).size)
+        val rule = Blow()
+        rule.feed(0, 1_000, -77f)
+        assertEquals(1, rule.feed(1_000, 2_000, -47f).size)
+        rule.feed(2_000, 2_500, -77f)
+        assertEquals(1, rule.feed(2_500, 3_500, -47f).size)
     }
 
     @Test
     fun `짧은 숨이나 한 프레임 끊김으로는 세지 않는다`() {
-        val rule = BlowRule()
+        val rule = Blow()
         assertEquals(0, rule.feed(0, 300, -47f).size)
         rule.feed(300, 1_000, -77f)
         // 불다가 한 프레임 조용해져도 평균 창 덕분에 한 번의 불기로 본다
@@ -128,9 +141,68 @@ class VoiceRulesTest {
     }
 
     @Test
-    fun `민감도를 낮추면 약한 소리는 세지 않는다`() {
-        val rule = BlowRule(thresholdDb = -45f)
-        assertEquals(0, rule.feed(0, 2_000, -50f).size)
-        assertEquals(1, rule.feed(2_000, 3_000, -40f).size)
+    fun `민감도를 낮추면 소음보다 조금 큰 소리는 세지 않는다`() {
+        // 소음 -60에 -50으로 분다: 둔하게(13dB)는 세지 않고 예민하게(7dB)는 센다
+        val low = Blow(BlowRule.marginFor(BlowSensitivity.LOW))
+        low.feed(0, 1_000, -60f)
+        assertEquals(0, low.feed(1_000, 2_000, -50f).size)
+        val high = Blow(BlowRule.marginFor(BlowSensitivity.HIGH))
+        high.feed(0, 1_000, -60f)
+        assertEquals(1, high.feed(1_000, 2_000, -50f).size)
+    }
+
+    // ---- 소음이 큰 마이크 (2026-11-24 에뮬레이터 + Buds FE 핸즈프리: 소음 약 -53, "후~" 약 -30 ~ -46 dBFS) ----
+
+    /** 측정한 소음처럼 -52 ~ -55 사이를 오간다 */
+    private fun noisy(t: Long) = -53f + listOf(1f, -1f, 0f, -2f, 1f, 0.5f)[((t / 64) % 6).toInt()]
+
+    @Test
+    fun `소음이 -53인 마이크에서 아무것도 안 하면 세지 않는다`() {
+        val rule = Blow()
+        assertEquals(emptyList<Long>(), (0L until 10_000L step 64).filter { rule.onLevel(it, noisy(it)) })
+    }
+
+    @Test
+    fun `소음이 큰 마이크에서도 불 때마다 센다`() {
+        val rule = Blow()
+        fun quiet(from: Long, to: Long) = (from until to step 64).filter { rule.onLevel(it, noisy(it)) }
+        assertEquals(0, quiet(0, 2_000).size)
+        assertEquals(1, rule.feed(2_000, 3_500, -40f).size)
+        assertEquals(0, quiet(3_500, 5_000).size)
+        assertEquals(1, rule.feed(5_000, 6_500, -42f).size)
+    }
+
+    @Test
+    fun `듣기 시작 직후 소음을 재는 동안은 세지 않는다`() {
+        val rule = Blow()
+        // 시작부터 불고 있으면 그 소리를 소음으로 보고, 조용해졌다 다시 불 때 센다
+        assertEquals(0, rule.feed(0, 1_500, -40f).size)
+        rule.feed(1_500, 5_000, -53f)
+        assertEquals(1, rule.feed(5_000, 6_000, -40f).size)
+    }
+
+    @Test
+    fun `아주 조용한 마이크에서도 작은 잡음은 세지 않는다`() {
+        val rule = Blow()
+        rule.feed(0, 1_000, -90f)
+        // 소음 -90 + 10 = -80이지만 기준은 -66 아래로 내려가지 않는다
+        assertEquals(0, rule.feed(1_000, 2_000, -70f).size)
+        assertEquals(1, rule.feed(2_000, 3_000, -60f).size)
+    }
+
+    @Test
+    fun `소음이 큰 마이크에서도 한 번 센 뒤 외친 소리는 새 덩어리로 센다`() {
+        // 고정 기준 -60이면 소음 -53 때문에 덩어리가 끝나지 않아 외치기 결과를 버렸다
+        val floor = NoiseFloor()
+        val filter = SuccessFilter(threshold = { floor.thresholdDb(BlowRule.DEFAULT_MARGIN_DB) })
+        fun sound(from: Long, to: Long, db: (Long) -> Float) {
+            for (t in from until to step 64) { floor.onLevel(t, db(t)); filter.onLevel(t, db(t)) }
+        }
+        sound(0, 2_000, ::noisy)
+        sound(2_000, 3_500) { -40f }
+        assertEquals(true, filter.onBlow())
+        sound(3_500, 5_000, ::noisy)
+        sound(5_000, 6_500) { -35f }
+        assertEquals(true, filter.onSpeech(6_400, matched = true, final = false))
     }
 }

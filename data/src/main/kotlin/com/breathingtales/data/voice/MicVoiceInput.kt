@@ -27,14 +27,17 @@ class MicVoiceInput @Inject constructor(
     private val stt: PleosStt,
 ) : VoiceInputPort {
 
-    /** 숨 불기 기준(dBFS). 부모 설정의 민감도로 바꾼다 (09) */
+    /** 숨 불기로 볼 배경 소음과의 차이(dB). 부모 설정의 민감도로 바꾼다 (09) */
     @Volatile
-    var blowThresholdDb: Float = BlowRule.DEFAULT_THRESHOLD_DB
+    var blowMarginDb: Float = BlowRule.DEFAULT_MARGIN_DB
 
     override fun listen(type: InteractionType, keywords: List<String>): Flow<VoiceSignal> = channelFlow {
-        val filter = SuccessFilter(blowThresholdDb)
+        val margin = blowMarginDb
+        // 듣기마다 배경 소음을 새로 잰다. 소리 덩어리 구분과 숨 불기가 같은 기준을 쓴다
+        val floor = NoiseFloor()
+        val filter = SuccessFilter(threshold = { floor.thresholdDb(margin) })
         val lock = Any()
-        val blow = if (type != InteractionType.SHOUT) BlowRule(blowThresholdDb) else null
+        val blow = if (type != InteractionType.SHOUT) BlowRule(floor, margin) else null
         // STT가 늦어도 마이크 읽기를 막지 않도록 오래된 소리부터 버린다
         val audio = if (type.usesKeywords) Channel<ByteArray>(64, BufferOverflow.DROP_OLDEST) else null
 
@@ -59,15 +62,19 @@ class MicVoiceInput @Inject constructor(
         var levelMax = -90f
         audioInput.frames().collect { frame ->
             audio?.trySend(frame.pcm)
-            synchronized(lock) { filter.onLevel(frame.timeMs, frame.db) }
+            synchronized(lock) {
+                floor.onLevel(frame.timeMs, frame.db)
+                filter.onLevel(frame.timeMs, frame.db)
+            }
             // 진단용: 1초마다 최대 음량 (계속 -90 근처면 마이크가 막힌 것)
             levelMax = maxOf(levelMax, frame.db)
             if (frame.timeMs - levelLogAt >= 1_000) {
-                Log.v(TAG, "마이크 최대 %.1f dBFS".format(levelMax))
+                val noise = synchronized(lock) { floor.floorDb }
+                Log.v(TAG, "마이크 최대 %.1f dBFS · 소음 %s · 기준 %s".format(levelMax, noise?.let { "%.1f".format(it) } ?: "재는 중", synchronized(lock) { floor.thresholdDb(margin) }?.let { "%.1f".format(it) } ?: "-"))
                 levelLogAt = frame.timeMs
                 levelMax = -90f
             }
-            if (blow?.onLevel(frame.timeMs, frame.db) == true) {
+            if (blow != null && synchronized(lock) { blow.onLevel(frame.timeMs) }) {
                 val counted = synchronized(lock) { filter.onBlow() }
                 Log.d(TAG, "숨 불기 %.1f dBFS%s".format(frame.db, if (counted) " → 성공" else ""))
                 if (counted) send(VoiceSignal.Blow)

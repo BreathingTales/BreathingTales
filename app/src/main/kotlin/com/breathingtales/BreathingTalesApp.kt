@@ -36,10 +36,10 @@ class BreathingTalesApp : Application() {
             // 기어를 바꿔 멈추면 차가 등 스위치를 거부해 등이 남는다. 다시 정차하면 화면과 상관없이 되돌린다
             guard.watchPendingRestore()
         }
-        // 부모 설정의 숨 불기 민감도를 음성 어댑터 기준 음량으로 옮긴다. 다음 듣기부터 적용된다
+        // 부모 설정의 숨 불기 민감도를 음성 어댑터의 소음과의 차이로 옮긴다. 다음 듣기부터 적용된다
         appScope.launch {
             settings.settings.map { it.blowSensitivity }.distinctUntilChanged().collect {
-                voiceInput.blowThresholdDb = BlowRule.thresholdFor(it)
+                voiceInput.blowMarginDb = BlowRule.marginFor(it)
             }
         }
     }
